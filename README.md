@@ -41,4 +41,17 @@ np.einsum('i,ij->i', A, B)
 ```
 Which would give: [0, 22, 76]
 
-
+# Attention in Torch
+## Prepare environment
+1. Create a new virtual environment
+```
+python3 -m venv .llama2
+```
+2. Activate the new virtual environment
+```
+source .llama2/bin/activate
+```
+3. Install `torch`
+```
+pip install torch numpy
+```
