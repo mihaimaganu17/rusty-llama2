@@ -53,8 +53,8 @@ Keeps the internal state of a run through one attention head:
 7. value: Buffer for the value (D: Embedding dimension)
 8. attention buffer: Buffer for scores/attention values (H: number of heads, S: seq length)
 9. logits: output logits (H: number of heads, S: seq length)
-10. key cache: maintains the activations from previous run (L: layer, S: sequence length, D: Emb)
-11. value cache: maintains the activations from previous run (L: layer, S: sequence length, D: Emb)
+10. key cache: maintains the activations from previous tokens inference (L: layer, S: sequence length, D: Emb)
+11. value cache: maintains the activations from previous tokens inference (L: layer, S: sequence length, D: Emb)
 
 # Calculus and arithmetic tangent
 ## Einsum notation
