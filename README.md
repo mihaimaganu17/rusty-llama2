@@ -11,14 +11,36 @@ The checkpoint file has 2 parts:
 ### Configuation
 The configuration contains metadata about the tranformer. Each of the following fields are
 represented as a 4 byte unsigned integer.
-1. Transformer dimension: Presumably the count of all parameters of the model
+1. Transformer dimension or embedding size: It is the total number of query heads multiplied by the
+head size. This is effectively the `d_model` size of representations used as input to the multi-head
+attention, which is the same size as the embedding size.
 2. FFN size: Dimension for the feed-forward layers which follows each normalized
 Multi-Head Attention layer
-3. Number of query heads
-4. Number of key/value heads: Can be different because of multiquery, where the keys and value are
+3. Number of layers: Total number of the model's layers
+4. Number of query heads: Transformer dimension divided by the count of query heads gives us the
+dimension size for each head, also called depth.
+5. Number of key/value heads: Can be different because of multiquery, where the keys and value are
 shared across all of the different attention "heads".
-5. Vocabulary size: Total number of unique tokens used, usually 256 (byte-level)
-6. Sequence length: Max sequence length that could be outputed by the model.
+6. Vocabulary size: Total number of unique tokens used, usually 256 (byte-level)
+7. Sequence length: Max sequence length that could be outputed by the model.
+
+### Transformer weights
+The transformer hash the following weights
+1. Token embedding table: (V: Vocabulary size, D: Transformer dimension)
+2. RMSNorm Attention weights: (L: number of layers, D: Transformer / Embedding dimension)
+3. RMSNorm FeedForward weights: (L: number of layers, D: Transformer / Embedding dimension)
+// Weights for attention heads
+4. Query weights: (L: number of layers, D: Embedding dimension, Q: query heads * H: head size)
+5. Key weights: (L: number of layers, D: Embedding dimension, KV: key-value heads * H: head size)
+6. Value weights: (L: number of layers, D: Embedding dimension, KV: key-value heads * H: head size)
+// This gets multiplied with the concatenation result of all the attention heads
+7. Out weights: (L: number of layers, Q: query heads * H: head size, D: Embedding dimension)
+// Weights for feed-forward net
+8. W1: (L: Layer, F: feed-forward dim, D: Embedding dimension)
+9. W2: (L: Layer, D: Embedding_dimension, F: feed-forward dim)
+10. W3: (L: Layer, F: feed-forward dim, D: Embedding dimension)
+11. RMSNorm final output weights: (D: Transformer / Embedding dimension)
+12. (Optional) classifier weights for the logits, on the last layer.
 
 
 # Calculus and arithmetic tangent
