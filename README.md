@@ -42,6 +42,19 @@ The transformer hash the following weights
 11. RMSNorm final output weights: (D: Transformer / Embedding dimension)
 12. (Optional) classifier weights for the logits, on the last layer.
 
+### Run state
+Keeps the internal state of a run through one attention head:
+1. x: activation at the current time stamp (D: Embedding dimension)
+2. xrb: activation at the current time stamp for the residual branch(D: Embedding dimension)
+3. hidden_buffer: Buffer for the hidden dimension in the ffn (F: ffn hidden dimension)
+4. hidden_buffer2: Buffer for the hidden dimension in the ffn (F: ffn hidden dimension)
+5. query: Buffer for the query (D: Embedding dimension)
+6. key: Buffer for the key (D: Embedding dimension)
+7. value: Buffer for the value (D: Embedding dimension)
+8. attention buffer: Buffer for scores/attention values (H: number of heads, S: seq length)
+9. logits: output logits (H: number of heads, S: seq length)
+10. key cache: maintains the activations from previous run (L: layer, S: sequence length, D: Emb)
+11. value cache: maintains the activations from previous run (L: layer, S: sequence length, D: Emb)
 
 # Calculus and arithmetic tangent
 ## Einsum notation
