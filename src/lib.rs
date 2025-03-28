@@ -9,16 +9,22 @@ pub extern "C" fn hello_from_rust() {
 // 2. `weights` is (dimensions, size), a 2-dimensional tensor
 // 3. `out` is W @ I (dimensions,), a 1-dimensional tensor
 #[unsafe(no_mangle)]
-pub extern "C" fn matrix_mul(out: *mut f32, input: *const f32, weights: *const f32, size: usize, dimensions: usize) {
+pub extern "C" fn matrix_mul(
+    out: *mut f32,
+    input: *const f32,
+    weights: *const f32,
+    size: isize,
+    dimensions: isize,
+) {
     unsafe {
-    for dim in 0..dimensions {
-        let mut sum = 0f32;
-        for idx in 0..size {
-            // TODO: Is this a wrapping add actually?
-            sum += *weights.add(dim * size + idx) * *input.add(idx);
+        for dim in 0..dimensions {
+            let mut sum = 0f32;
+            for idx in 0..size {
+                // TODO: Is this a wrapping add and a wrapping mul actually?
+                sum += *weights.offset(dim * size + idx) * *input.offset(idx);
+            }
+            *out.offset(dim) = sum;
         }
-        *out.add(dim) = sum;
-    }
     }
 }
 

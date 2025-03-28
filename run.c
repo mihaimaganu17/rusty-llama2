@@ -13,6 +13,10 @@
     #include <unistd.h>
     #include <sys/mman.h>
 #endif
+
+// Functions imported from the `rusty_llama2` dylib
+extern void matrix_mul(float* out, float *input, float *weights, int size, int dimensions);
+
 // ----------------------------------------------------------------------------
 // Transformer model
 
@@ -258,9 +262,9 @@ float* forward(Transformer* transformer, int token, int pos) {
         s->v = s->value_cache + loff + pos * kv_dim;
 
         // qkv matmuls for this position
-        matmul(s->q, s->xb, w->wq + l*dim*dim, dim, dim);
-        matmul(s->k, s->xb, w->wk + l*dim*kv_dim, dim, kv_dim);
-        matmul(s->v, s->xb, w->wv + l*dim*kv_dim, dim, kv_dim);
+        matrix_mul(s->q, s->xb, w->wq + l*dim*dim, dim, dim);
+        matrix_mul(s->k, s->xb, w->wk + l*dim*kv_dim, dim, kv_dim);
+        matrix_mul(s->v, s->xb, w->wv + l*dim*kv_dim, dim, kv_dim);
 
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
         for (int i = 0; i < dim; i+=2) {
