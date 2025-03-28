@@ -1,2 +1,4 @@
 /target
 .llama2
+run
+*.bin
