@@ -16,9 +16,11 @@ pub extern "C" fn matrix_mul(
     size: isize,
     dimensions: isize,
 ) {
+    println!("{:?} {:?}", size, dimensions);
     unsafe {
+        let mut sum = 0f32;
         for dim in 0..dimensions {
-            let mut sum = 0f32;
+            sum = 0f32;
             for idx in 0..size {
                 // TODO: Is this a wrapping add and a wrapping mul actually?
                 sum += *weights.offset(dim * size + idx) * *input.offset(idx);

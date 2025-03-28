@@ -324,7 +324,7 @@ float* forward(Transformer* transformer, int token, int pos) {
         }
 
         // final matmul to get the output of the attention
-        matmul(s->xb2, s->xb, w->wo + l*dim*dim, dim, dim);
+        matrix_mul(s->xb2, s->xb, w->wo + l*dim*dim, dim, dim);
 
         // residual connection back into x
         for (int i = 0; i < dim; i++) {
@@ -336,8 +336,8 @@ float* forward(Transformer* transformer, int token, int pos) {
 
         // Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
         // first calculate self.w1(x) and self.w3(x)
-        matmul(s->hb, s->xb, w->w1 + l*dim*hidden_dim, dim, hidden_dim);
-        matmul(s->hb2, s->xb, w->w3 + l*dim*hidden_dim, dim, hidden_dim);
+        matrix_mul(s->hb, s->xb, w->w1 + l*dim*hidden_dim, dim, hidden_dim);
+        matrix_mul(s->hb2, s->xb, w->w3 + l*dim*hidden_dim, dim, hidden_dim);
 
         // SwiGLU non-linearity
         for (int i = 0; i < hidden_dim; i++) {
@@ -350,7 +350,7 @@ float* forward(Transformer* transformer, int token, int pos) {
         }
 
         // final matmul to get the output of the ffn
-        matmul(s->xb, s->hb, w->w2 + l*dim*hidden_dim, hidden_dim, dim);
+        matrix_mul(s->xb, s->hb, w->w2 + l*dim*hidden_dim, hidden_dim, dim);
 
         // residual connection
         for (int i = 0; i < dim; i++) {
@@ -362,7 +362,7 @@ float* forward(Transformer* transformer, int token, int pos) {
     rmsnorm(x, x, w->rms_final_weight, dim);
 
     // classifier into logits
-    matmul(s->logits, x, w->wcls, p->dim, p->vocab_size);
+    matrix_mul(s->logits, x, w->wcls, p->dim, p->vocab_size);
     return s->logits;
 }
 
