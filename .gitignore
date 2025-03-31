@@ -2,3 +2,4 @@
 .llama2
 run
 *.bin
+.ipynb_checkpoints/
