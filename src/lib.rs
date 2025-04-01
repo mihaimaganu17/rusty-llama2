@@ -7,7 +7,11 @@ pub extern "C" fn hello_from_rust() {
 /// The `head_size` represents the dimension of a single attention head and `kv_dim` is the
 /// dimension of both the keys and the values tensors.
 #[unsafe(no_mangle)]
-pub extern "C" fn rope(embedding_size: usize, pos: usize, head_size: usize, kv_dim: usize,
+pub extern "C" fn rope(
+    embedding_size: usize,
+    pos: usize,
+    head_size: usize,
+    kv_dim: usize,
     queries: *mut f32,
     keys: *mut f32,
 ) {
@@ -35,11 +39,7 @@ pub extern "C" fn rope(embedding_size: usize, pos: usize, head_size: usize, kv_d
         // This for loop is an easier way to write rotation for either only queries or both
         // queries and keys
         for vec_idx in 0..q_and_k_to_rotate {
-            let to_rotate = if vec_idx == 0 {
-                queries
-            } else {
-                keys
-            };
+            let to_rotate = if vec_idx == 0 { queries } else { keys };
             unsafe {
                 // Get the 2 values to be rotated
                 let v0 = *to_rotate.add(i);
@@ -53,12 +53,14 @@ pub extern "C" fn rope(embedding_size: usize, pos: usize, head_size: usize, kv_d
 }
 
 // Multiply the contents of the input matrix with the contents of the weigth matrix and store the
-// results in the `out` matrix. Shapes of the tensors are the following:
-// 1. `input` is (size,), a 1-dimensional tensor
-// 2. `weights` is (dimensions, size), a 2-dimensional tensor
-// 3. `out` is W @ I (dimensions,), a 1-dimensional tensor
+// results in the `out` matrix.
+/// # Safety
+/// Make sure that the following dimensions match for the 3 vectors
+/// 1. `input` is (size,), a 1-dimensional tensor
+/// 2. `weights` is (dimensions, size), a 2-dimensional tensor
+/// 3. `out` is W @ I (dimensions,), a 1-dimensional tensor
 #[unsafe(no_mangle)]
-pub extern "C" fn matrix_mul(
+pub unsafe extern "C" fn matrix_mul(
     out: *mut f32,
     input: *const f32,
     weights: *const f32,
@@ -78,5 +80,4 @@ pub extern "C" fn matrix_mul(
 }
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}
