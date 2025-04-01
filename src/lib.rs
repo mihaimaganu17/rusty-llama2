@@ -4,15 +4,20 @@ pub extern "C" fn hello_from_rust() {
 }
 
 /// Rotate position embeddings over the entire `embedding_size` space to the position `pos`.
+/// The `head_size` represents the dimension of a single attention head and `kv_dim` is the
+/// dimension of both the keys and the values tensors.
 #[unsafe(no_mangle)]
-pub extern "C" fn rope(embedding_size: usize, pos: usize, head_size: usize, kv_dim: usize) {
+pub extern "C" fn rope(embedding_size: usize, pos: usize, head_size: usize, kv_dim: usize,
+    queries: *mut f32,
+    keys: *mut f32,
+) {
     // We rotate over the entire token embedding space, 2 tokens at a time
     for i in (0..embedding_size).step_by(2) {
         let head_dim = i % head_size;
         // Compute the angle by which the tokens have to be rotated. Usually this angle is computed
         // and scaled based on the full embeddings dimension, however here, we scale it based
         // on the position in the attention head
-        let angle = 1.0 / 10000_f32.powf(head_dim as f32 / head_size as f32);
+        let angle = 1.0f32 / 10000_f32.powf(head_dim as f32 / head_size as f32);
         // Move the angle to the required position
         let angle = pos as f32 * angle;
         // Compute the sin and cos values for the angle
@@ -31,10 +36,18 @@ pub extern "C" fn rope(embedding_size: usize, pos: usize, head_size: usize, kv_d
         // queries and keys
         for vec_idx in 0..q_and_k_to_rotate {
             let to_rotate = if vec_idx == 0 {
-                todo!()
+                queries
             } else {
-                todo!()
+                keys
             };
+            unsafe {
+                // Get the 2 values to be rotated
+                let v0 = *to_rotate.add(i);
+                let v1 = *to_rotate.add(i + 1);
+                // Rotate their values
+                *to_rotate.add(i) = v0 * cos - v1 * sin;
+                *to_rotate.add(i + 1) = v0 * sin + v1 * cos;
+            }
         }
     }
 }
@@ -52,11 +65,9 @@ pub extern "C" fn matrix_mul(
     size: isize,
     dimensions: isize,
 ) {
-    println!("{:?} {:?}", size, dimensions);
     unsafe {
-        let mut sum = 0f32;
         for dim in 0..dimensions {
-            sum = 0f32;
+            let mut sum = 0f32;
             for idx in 0..size {
                 // TODO: Is this a wrapping add and a wrapping mul actually?
                 sum += *weights.offset(dim * size + idx) * *input.offset(idx);

@@ -5,7 +5,7 @@ CC = clang
 # the most basic way of building that is most likely to work on most systems
 .PHONY: run
 run: run.c
-	$(CC) -O3 -o run run.c -lm -lrusty_llama2 -L../rusty-llama2/target/debug
+	$(CC) -O3 -o run run.c -lm -lrusty_llama2 -L../rusty-llama2/target/release
 
 # useful for a debug build, can then e.g. analyze with valgrind, example:
 # $ valgrind --leak-check=full ./run out/model.bin -n 3
