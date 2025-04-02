@@ -285,14 +285,17 @@ float* forward(Transformer* transformer, int token, int pos) {
         // multihead attention. iterate over all heads
         int h;
         #pragma omp parallel for private(h)
+        // For each attention head
         for (h = 0; h < p->n_heads; h++) {
             // get the query vector for this head
             float* q = s->q + h * head_size;
-            // attention scores for this head
+            // attention scores for this head. Attention depend on the sequence length of the
+            // tokens.
             float* att = s->att + h * p->seq_len;
             // iterate over all timesteps, including the current one
             for (int t = 0; t <= pos; t++) {
-                // get the key vector for this head and at this timestep
+                // get the key vector for this head and at this timestep. `t` being the current
+                // position
                 float* k = s->key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
                 // calculate the attention score as the dot product of q and k
                 float score = 0.0f;

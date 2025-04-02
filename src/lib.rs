@@ -67,10 +67,7 @@ pub unsafe extern "C" fn kv_cache(
         // Get pointer to the values cache
         let values = values.add(position_cache);
 
-        KVCache {
-            keys,
-            values,
-        }
+        KVCache { keys, values }
     }
 }
 
