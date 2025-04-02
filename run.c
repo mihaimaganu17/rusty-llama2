@@ -14,9 +14,16 @@
     #include <sys/mman.h>
 #endif
 
+// Struct matching Rust return values
+struct KVCache {
+    float* keys;
+    float* values;
+};
+
 // Functions imported from the `rusty_llama2` dylib
 extern void matrix_mul(float* out, float *input, float *weights, int size, int dimensions);
 extern void rope(int embedding_size, int pos, int head_size, int kv_dim, float* queries, float* keys);
+extern struct KVCache kv_cache(float* keys, float* values, int layer, int seq_len, int kv_dim, int position);
 
 // ----------------------------------------------------------------------------
 // Transformer model
@@ -258,9 +265,10 @@ float* forward(Transformer* transformer, int token, int pos) {
         rmsnorm(s->xb, x, w->rms_att_weight + l*dim, dim);
 
         // key and value point to the kv cache
-        int loff = l * p->seq_len * kv_dim; // kv cache layer offset for convenience
-        s->k = s->key_cache + loff + pos * kv_dim;
-        s->v = s->value_cache + loff + pos * kv_dim;
+        struct KVCache cache;
+        cache = kv_cache(s->key_cache, s->value_cache, l, p->seq_len, kv_dim, pos);
+        s->k = cache.keys;
+        s->v = cache.values;
 
         // qkv matmuls for this position
         matrix_mul(s->q, s->xb, w->wq + l*dim*dim, dim, dim);
@@ -269,6 +277,8 @@ float* forward(Transformer* transformer, int token, int pos) {
 
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
         rope(dim, pos, head_size, kv_dim, s->q, s->k);
+
+        int loff = l * p->seq_len * kv_dim; // kv cache layer offset for convenience
 
         // multihead attention. iterate over all heads
         int h;

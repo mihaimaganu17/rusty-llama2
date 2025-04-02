@@ -3,6 +3,47 @@ pub extern "C" fn hello_from_rust() {
     println!("Hello from Rust!");
 }
 
+#[repr(C)]
+pub struct KVCache {
+    keys: *const f32,
+    values: *const f32,
+}
+
+/// Given a certain `layer` move the `keys` and `value` pointers to the cache position for that
+/// layer and that `position` in the sequence.
+/// # Safety
+/// The cache has the following dimension:
+/// (layers, seq_len, embedding_size)
+/// Which means that for each layer, we have the same number of key and value vectors to the number
+/// of characters in the sequence. Each of which have the `embedding_size` which is the size of the
+/// transformer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn kv_cache(
+    keys: *const f32,
+    values: *const f32,
+    layer: usize,
+    seq_len: usize,
+    kv_dim: usize,
+    position: usize,
+) -> KVCache {
+    // Go to the desired layer
+    let layer_cache = layer * (seq_len * kv_dim);
+    // Go to the desired position
+    let position_cache = layer_cache + position * kv_dim;
+
+    unsafe {
+        // Get pointer to the keys cache
+        let keys = keys.add(position_cache);
+        // Get pointer to the values cache
+        let values = values.add(position_cache);
+
+        KVCache {
+            keys,
+            values,
+        }
+    }
+}
+
 /// Rotate position embeddings over the entire `embedding_size` space to the position `pos`.
 /// The `head_size` represents the dimension of a single attention head and `kv_dim` is the
 /// dimension of both the keys and the values tensors.
