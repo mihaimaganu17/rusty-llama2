@@ -9,6 +9,36 @@ pub struct KVCache {
     values: *const f32,
 }
 
+/// Root mean squared normalization or RMSNorm is a layer optimisation technique proved to be
+/// more efficient computation-wise than LayerNorm and it is used to normalise the layer by giving
+/// the model re-scaling invariance property. It reduces the running time of a model by a factor
+/// between 7% and 64% compared to LayerNorm. The following function computes RMS over `inputs`
+/// and normalizes the activation by multiplying the `weights` with inputs and dividing by the RMS
+/// previously computed.
+/// # Safety
+/// The results is returned through `out` pointer and all vectors have `size` values.
+pub unsafe extern "C" fn rms_norm(
+    out: *mut f32,
+    input: *const f32,
+    weights: *const f32,
+    size: usize,
+) {
+    let mut squared_sum = 0f32;
+    // Compute the sum of all the input's squares
+    for idx in 0..size {
+        squared_sum += unsafe { *input.add(idx) * *input.add(idx) };
+    }
+
+    // Parameter to make sure the squared sum over size is not intepreted as zero.
+    let epsilon = 1e-5;
+    let rms: f32 = epsilon + (1.0f32 / size as f32 + squared_sum).sqrt();
+
+    // Normalize / Activate the layer using rms
+    for idx in 0..size {
+        unsafe { *out.add(idx) = *input.add(idx) * *weights.add(idx) / rms };
+    }
+}
+
 /// Given a certain `layer` move the `keys` and `value` pointers to the cache position for that
 /// layer and that `position` in the sequence.
 /// # Safety

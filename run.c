@@ -21,9 +21,11 @@ struct KVCache {
 };
 
 // Functions imported from the `rusty_llama2` dylib
-extern void matrix_mul(float* out, float *input, float *weights, int size, int dimensions);
+extern void rms_norm(float* out, float* input, float *weights, int size);
+extern void matrix_mul(float* out, float* input, float* weights, int size, int dimensions);
 extern void rope(int embedding_size, int pos, int head_size, int kv_dim, float* queries, float* keys);
 extern struct KVCache kv_cache(float* keys, float* values, int layer, int seq_len, int kv_dim, int position);
+
 
 // ----------------------------------------------------------------------------
 // Transformer model
@@ -262,7 +264,7 @@ float* forward(Transformer* transformer, int token, int pos) {
 
         // attention rmsnorm
         // Go to that layers weights and multiply by the input
-        rmsnorm(s->xb, x, w->rms_att_weight + l*dim, dim);
+        rms_norm(s->xb, x, w->rms_att_weight + l*dim, dim);
 
         // key and value point to the kv cache
         struct KVCache cache;
