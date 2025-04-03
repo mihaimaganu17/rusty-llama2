@@ -4,7 +4,42 @@ pub extern "C" fn hello_from_rust() {
 }
 
 pub unsafe extern "C" fn multihead_attention(
+    head_count: usize,
+    kv_head_count: usize,
+    head_size: usize,
+    layer: usize,
+    seq_len: usize,
+    embedding_size: usize,
+    current_position: usize,
+    attention_scores: *mut f32,
+    queries: *mut f32,
+    keys_cache: *mut f32,
+    _values_cache: *mut f32,
 ) {
+    // Integer ration between query heads count and kv heads count
+    let kv_mul = head_count / kv_head_count;
+    // For each attention head in the transformer
+    for h_idx in 0..head_count {
+        // Get the queries for this head
+        let h_queries = unsafe { queries.add(h_idx * head_size) };
+        // Get the attention scores for this head
+        let h_attention_scores = unsafe { attention_scores.add(h_idx * seq_len) };
+        // For each time step / position in the sequence length including this one
+        for pos in 0..=current_position {
+            let key_cache_offset = (layer * seq_len * embedding_size)
+                + (pos * embedding_size)
+                + ((h_idx / kv_mul) * head_size);
+            let h_keys = unsafe { keys_cache.add(key_cache_offset) };
+            // Compute the attention scores
+            for head_pos in 0..head_size {
+                unsafe {
+                    *h_attention_scores.add(head_pos) += *h_keys.add(head_pos) * *h_queries.add(head_pos)
+                };
+            }
+            // Normalize and scale by the square root of the length
+            unsafe { *h_attention_scores /= (head_size as f32).sqrt() };
+        }
+    }
     // For each attention head (the heads are miniseries of the entire embedding size)
     // get queries for this head idx (embedding_size)
     // get attention scores for this head (n_heads, seq_len)
