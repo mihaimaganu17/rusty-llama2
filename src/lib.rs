@@ -3,6 +3,25 @@ pub extern "C" fn hello_from_rust() {
     println!("Hello from Rust!");
 }
 
+pub unsafe extern "C" fn multihead_attention(
+) {
+    // For each attention head (the heads are miniseries of the entire embedding size)
+    // get queries for this head idx (embedding_size)
+    // get attention scores for this head (n_heads, seq_len)
+    // att = att + h * headsize
+    // for each position in the sequence length
+    // get the current key vector at this time step
+    // kv_mul = n_heads / kv_heads
+    // k -> l * seq_len * kv_dim + t * kv_dim +
+    // In a multiquery system, each key can have multiple queries. How many queries a key
+    // has is given by dividing the number of query heads to the number of k_value heads
+    //  h / kv_mul * head_size
+    // compute the sum score based on keys and queries for each key
+    // make attention at t time equal to the score
+    // score is splitted by the head size
+    // compute softmax for the att from 0 to this current position inclusively
+}
+
 #[repr(C)]
 pub struct KVCache {
     keys: *const f32,
