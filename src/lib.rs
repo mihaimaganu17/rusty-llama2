@@ -27,6 +27,7 @@ pub unsafe fn softmax(input: *mut f32, size: usize) {
     }
 }
 
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn multihead_attention(
     head_count: usize,
     kv_head_count: usize,
@@ -115,6 +116,7 @@ pub struct KVCache {
 /// previously computed.
 /// # Safety
 /// The results is returned through `out` pointer and all vectors have `size` values.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rms_norm(
     out: *mut f32,
     input: *const f32,
