@@ -303,7 +303,7 @@ float* forward(Transformer* transformer, int token, int pos) {
             head_size,
             l,
             p->seq_len,
-            dim,
+            p->dim,
             pos,
             s->att,
             s->q,
