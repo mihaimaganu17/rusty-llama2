@@ -296,8 +296,6 @@ float* forward(Transformer* transformer, int token, int pos) {
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
         rope(dim, pos, head_size, kv_dim, s->q, s->k);
 
-        int loff = l * p->seq_len * kv_dim; // kv cache layer offset for convenience
-
         // multihead attention. iterate over all heads
         multihead_attention(
             p->n_heads,
@@ -309,12 +307,12 @@ float* forward(Transformer* transformer, int token, int pos) {
             pos,
             s->att,
             s->q,
-            s->k,
-            s->v,
+            s->key_cache,
+            s->value_cache,
             s->xb,
             w->wo,
             s->xb2,
-            s->x);
+            x);
         // ffn rmsnorm
         rmsnorm(s->xb, x, w->rms_ffn_weight + l*dim, dim);
 

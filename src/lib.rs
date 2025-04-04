@@ -8,8 +8,8 @@ pub unsafe fn softmax(input: *mut f32, size: usize) {
         // Find the max value for numerical stability. This avoids the exponential function to
         // overflow in the case of large numbers and avoids nans because an exponential overflow of
         // a large number could give us inf/inf: https://jaykmody.com/blog/stable-softmax/
-        let mut max = f32::NEG_INFINITY;
-        for idx in 0..size {
+        let mut max = *input.add(0);
+        for idx in 1..size {
             if *input.add(idx) > max {
                 max = *input.add(idx);
             }
@@ -17,7 +17,7 @@ pub unsafe fn softmax(input: *mut f32, size: usize) {
         // Compute the sum of the exponentials of all the values in the array
         let mut sum = 0.0f32;
         for idx in 0..size {
-            *input.add(idx) = (*input.add(idx)).exp() - max;
+            *input.add(idx) = (*input.add(idx) - max).exp();
             sum += *input.add(idx);
         }
         // Divide each element by the sum of exponentials
@@ -47,6 +47,7 @@ pub unsafe extern "C" fn multihead_attention(
 ) {
     // Integer ration between query heads count and kv heads count
     let kv_mul = head_count / kv_head_count;
+    let kv_dim = (embedding_size * kv_head_count) / head_count;
     // For each attention head in the transformer
     for h_idx in 0..head_count {
         // Get the queries for this head
@@ -55,18 +56,20 @@ pub unsafe extern "C" fn multihead_attention(
         let h_attention_scores = unsafe { attention_scores.add(h_idx * seq_len) };
         // For each time step / position in the sequence length including this one
         for pos in 0..=current_position {
-            let key_cache_offset = (layer * seq_len * embedding_size)
-                + (pos * embedding_size)
+            let key_cache_offset = (layer * seq_len * kv_dim)
+                + (pos * kv_dim)
                 + ((h_idx / kv_mul) * head_size);
             let h_keys = unsafe { keys_cache.add(key_cache_offset) };
+            let mut score = 0.0f32;
             // Compute the attention scores
             for head_pos in 0..head_size {
                 unsafe {
-                    *h_attention_scores.add(head_pos) += *h_keys.add(head_pos) * *h_queries.add(head_pos)
+                    score += *h_keys.add(head_pos) * *h_queries.add(head_pos)
                 };
             }
             // Normalize and scale by the square root of the length
-            unsafe { *h_attention_scores /= (head_size as f32).sqrt() };
+            score /= (head_size as f32).sqrt();
+            unsafe { *h_attention_scores.add(pos) = score };
         }
         // Activate layer to get the attention weights, including current position
         unsafe { softmax(h_attention_scores, current_position+1) };
@@ -78,14 +81,15 @@ pub unsafe extern "C" fn multihead_attention(
         // For each of the positions
         for pos in 0..=current_position {
             // Get the values from the value cache
-            let h_values_cache_offset = (layer * seq_len * embedding_size)
-                + (pos * embedding_size)
+            let h_values_cache_offset = (layer * seq_len * kv_dim)
+                + (pos * kv_dim)
                 + ((h_idx / kv_mul) * head_size);
             let h_values_cache = unsafe { values_cache.add(h_values_cache_offset) };
+            let attention = unsafe { *h_attention_scores.add(pos) };
             // For each attention score in the entire head
             for head_pos in 0..head_size {
                 // Accumulate the weighted attention scores
-                unsafe { *h_weight_attention.add(head_pos)+= *h_attention_scores.add(head_pos)
+                unsafe { *h_weight_attention.add(head_pos) += attention
                     * *h_values_cache.add(head_pos) };
             }
         }
