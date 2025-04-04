@@ -38,7 +38,11 @@ pub unsafe extern "C" fn multihead_attention(
     attention_scores: *mut f32,
     queries: *mut f32,
     keys_cache: *mut f32,
-    _values_cache: *mut f32,
+    values_cache: *mut f32,
+    weigh_attention: *mut f32,
+    output_weights: *mut f32,
+    heads_activation: *mut f32, // (embedding_size,) == (head_count * head_size)
+    input: *mut f32,
 ) {
     // Integer ration between query heads count and kv heads count
     let kv_mul = head_count / kv_head_count;
@@ -63,22 +67,38 @@ pub unsafe extern "C" fn multihead_attention(
             // Normalize and scale by the square root of the length
             unsafe { *h_attention_scores /= (head_size as f32).sqrt() };
         }
+        // Activate layer to get the attention weights, including current position
+        unsafe { softmax(h_attention_scores, current_position+1) };
+
+        // Go to the right position in the output values
+        let h_weight_attention = unsafe { weigh_attention.add(h_idx * head_size) };
+        // Prepare the buffer to accumulate weighted attention
+        unsafe { h_weight_attention.write_bytes(0u8, head_size * core::mem::size_of::<f32>()); }
+        // For each of the positions
+        for pos in 0..=current_position {
+            // Get the values from the value cache
+            let h_values_cache_offset = (layer * seq_len * embedding_size)
+                + (pos * embedding_size)
+                + ((h_idx / kv_mul) * head_size);
+            let h_values_cache = unsafe { values_cache.add(h_values_cache_offset) };
+            // For each attention score in the entire head
+            for head_pos in 0..head_size {
+                // Accumulate the weighted attention scores
+                unsafe { *h_weight_attention.add(head_pos)+= *h_attention_scores.add(head_pos)
+                    * *h_values_cache.add(head_pos) };
+            }
+        }
     }
-    // For each attention head (the heads are miniseries of the entire embedding size)
-    // get queries for this head idx (embedding_size)
-    // get attention scores for this head (n_heads, seq_len)
-    // att = att + h * headsize
-    // for each position in the sequence length
-    // get the current key vector at this time step
-    // kv_mul = n_heads / kv_heads
-    // k -> l * seq_len * kv_dim + t * kv_dim +
-    // In a multiquery system, each key can have multiple queries. How many queries a key
-    // has is given by dividing the number of query heads to the number of k_value heads
-    //  h / kv_mul * head_size
-    // compute the sum score based on keys and queries for each key
-    // make attention at t time equal to the score
-    // score is splitted by the head size
-    // compute softmax for the att from 0 to this current position inclusively
+    // Final activation with the output weights
+    let weights = unsafe { output_weights.add(layer * embedding_size * embedding_size) };
+    // or
+    // let out = output_weights.add(layer * (head_size * head_count) * embedding_size);
+    unsafe { matrix_mul(heads_activation, weigh_attention, weights, embedding_size, embedding_size) };
+
+    // Also connect the residual branch
+    for idx in 0..embedding_size {
+        unsafe { *input.add(idx) += *heads_activation.add(idx) };
+    }
 }
 
 #[repr(C)]
@@ -210,17 +230,17 @@ pub unsafe extern "C" fn matrix_mul(
     out: *mut f32,
     input: *const f32,
     weights: *const f32,
-    size: isize,
-    dimensions: isize,
+    size: usize,
+    dimensions: usize,
 ) {
     unsafe {
         for dim in 0..dimensions {
             let mut sum = 0f32;
             for idx in 0..size {
                 // TODO: Is this a wrapping add and a wrapping mul actually?
-                sum += *weights.offset(dim * size + idx) * *input.offset(idx);
+                sum += *weights.add(dim * size + idx) * *input.add(idx);
             }
-            *out.offset(dim) = sum;
+            *out.add(dim) = sum;
         }
     }
 }
