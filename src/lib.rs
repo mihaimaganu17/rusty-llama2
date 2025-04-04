@@ -3,6 +3,30 @@ pub extern "C" fn hello_from_rust() {
     println!("Hello from Rust!");
 }
 
+pub unsafe fn softmax(input: *mut f32, size: usize) {
+    unsafe {
+        // Find the max value for numerical stability. This avoids the exponential function to
+        // overflow in the case of large numbers and avoids nans because an exponential overflow of
+        // a large number could give us inf/inf: https://jaykmody.com/blog/stable-softmax/
+        let mut max = f32::NEG_INFINITY;
+        for idx in 0..size {
+            if *input.add(idx) > max {
+                max = *input.add(idx);
+            }
+        }
+        // Compute the sum of the exponentials of all the values in the array
+        let mut sum = 0.0f32;
+        for idx in 0..size {
+            *input.add(idx) = (*input.add(idx)).exp() - max;
+            sum += *input.add(idx);
+        }
+        // Divide each element by the sum of exponentials
+        for idx in 0..size {
+            *input.add(idx) /= sum;
+        }
+    }
+}
+
 pub unsafe extern "C" fn multihead_attention(
     head_count: usize,
     kv_head_count: usize,
