@@ -133,6 +133,8 @@ pub unsafe extern "C" fn rms_norm(
         squared_sum += unsafe { *input.add(idx) * *input.add(idx) };
     }
 
+    squared_sum /= size as f32;
+
     // Parameter to make sure the squared sum over size is not intepreted as zero.
     let epsilon = 1e-5;
     let rms: f32 = epsilon + (1.0f32 / size as f32 + squared_sum).sqrt();
