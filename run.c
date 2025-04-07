@@ -42,6 +42,19 @@ extern void multihead_attention(
     float* heads_activation,
     float* input
 );
+extern void head_ffn(
+    float* input,
+    float* w_projection1,
+    float* w_projection2,
+    float* w_projection_activation,
+    float* hidden_dim_buffer1,
+    float* hidden_dim_buffer2,
+    float* temp_buffer,
+    float* w_rmd_ffn,
+    int layer,
+    int embedding_size,
+    int hidden_dim
+);
 
 // ----------------------------------------------------------------------------
 // Transformer model
@@ -312,32 +325,21 @@ float* forward(Transformer* transformer, int token, int pos) {
             s->xb,
             w->wo,
             s->xb2,
-            x);
-        // ffn rmsnorm
-        rmsnorm(s->xb, x, w->rms_ffn_weight + l*dim, dim);
-
-        // Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
-        // first calculate self.w1(x) and self.w3(x)
-        matrix_mul(s->hb, s->xb, w->w1 + l*dim*hidden_dim, dim, hidden_dim);
-        matrix_mul(s->hb2, s->xb, w->w3 + l*dim*hidden_dim, dim, hidden_dim);
-
-        // SwiGLU non-linearity
-        for (int i = 0; i < hidden_dim; i++) {
-            float val = s->hb[i];
-            // silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
-            val *= (1.0f / (1.0f + expf(-val)));
-            // elementwise multiply with w3(x)
-            val *= s->hb2[i];
-            s->hb[i] = val;
-        }
-
-        // final matmul to get the output of the ffn
-        matrix_mul(s->xb, s->hb, w->w2 + l*dim*hidden_dim, hidden_dim, dim);
-
-        // residual connection
-        for (int i = 0; i < dim; i++) {
-            x[i] += s->xb[i];
-        }
+            x
+        );
+        head_ffn(
+            x,
+            w->w1,
+            w->w3,
+            w->w2,
+            s->hb,
+            s->hb2,
+            s->xb,
+            w->rms_ffn_weight,
+            l,
+            dim,
+            hidden_dim
+        );
     }
 
     // final rmsnorm
