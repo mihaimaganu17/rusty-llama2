@@ -45,14 +45,12 @@ pub unsafe extern "C" fn head_ffn(
         // Normalize the input to the ffn
         let l_w_rms_ffn = w_rms_ffn.add(layer * embedding_size);
         rms_norm(temp_buffer, input, l_w_rms_ffn, embedding_size);
-
-        /*
         // Compute the 2 learned parrallel projections of the hidden layer.
         let l_w_projection1 = w_projection1.add(layer * embedding_size * hidden_dim);
-        matrix_mul(hidden_dim_buffer1, temp_buffer, l_w_projection1, embedding_size, hidden_dim);
+        //matrix_mul(hidden_dim_buffer1, temp_buffer, l_w_projection1, embedding_size, hidden_dim);
 
         let l_w_projection2 = w_projection2.add(layer * embedding_size * hidden_dim);
-        matrix_mul(hidden_dim_buffer2, temp_buffer, l_w_projection2, embedding_size, hidden_dim);
+        //matrix_mul(hidden_dim_buffer2, temp_buffer, l_w_projection2, embedding_size, hidden_dim);
 
         // Compute the activation function between the 2 projections of the hidden layer. In this case
         // SwiGLU
@@ -69,14 +67,12 @@ pub unsafe extern "C" fn head_ffn(
             *hidden_dim_buffer1.add(idx) = val;
         }
         // Activate the hidden layer
-        matrix_mul(temp_buffer, hidden_dim_buffer1, w_projection_activation.add(layer * hidden_dim),
-            hidden_dim, embedding_size);
+        //matrix_mul(temp_buffer, hidden_dim_buffer1, w_projection_activation.add(layer * embedding_size * hidden_dim), hidden_dim, embedding_size);
 
         // Adding residual connection
         for idx in 0..embedding_size {
             *input.add(idx) += *temp_buffer.add(idx);
         }
-        */
     }
 }
 
