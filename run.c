@@ -43,6 +43,9 @@ extern void multihead_attention(
     float* input
 );
 extern void head_ffn(
+    int layer,
+    int embedding_size,
+    int hidden_dim,
     float* input,
     float* w_projection1,
     float* w_projection2,
@@ -50,10 +53,7 @@ extern void head_ffn(
     float* hidden_dim_buffer1,
     float* hidden_dim_buffer2,
     float* temp_buffer,
-    float* w_rmd_ffn,
-    int layer,
-    int embedding_size,
-    int hidden_dim
+    float* w_rmd_ffn
 );
 
 // ----------------------------------------------------------------------------
@@ -325,9 +325,12 @@ float* forward(Transformer* transformer, int token, int pos) {
             s->xb,
             w->wo,
             s->xb2,
-            x
-        );
+            x);
+
         head_ffn(
+            l,
+            dim,
+            hidden_dim,
             x,
             w->w1,
             w->w3,
@@ -335,10 +338,7 @@ float* forward(Transformer* transformer, int token, int pos) {
             s->hb,
             s->hb2,
             s->xb,
-            w->rms_ffn_weight,
-            l,
-            dim,
-            hidden_dim
+            w->rms_ffn_weight
         );
     }
 

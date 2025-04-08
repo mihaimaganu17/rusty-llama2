@@ -29,6 +29,9 @@ pub unsafe fn softmax(input: *mut f32, size: usize) {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn head_ffn(
+    layer: usize,
+    embedding_size: usize,
+    hidden_dim: usize,
     input: *mut f32,
     w_projection1: *mut f32,
     w_projection2: *mut f32,
@@ -37,9 +40,6 @@ pub unsafe extern "C" fn head_ffn(
     hidden_dim_buffer2: *mut f32,
     temp_buffer: *mut f32,
     w_rms_ffn: *mut f32,
-    layer: usize,
-    embedding_size: usize,
-    hidden_dim: usize,
 ) {
     unsafe {
         // Normalize the input to the ffn
@@ -47,10 +47,10 @@ pub unsafe extern "C" fn head_ffn(
         rms_norm(temp_buffer, input, l_w_rms_ffn, embedding_size);
         // Compute the 2 learned parrallel projections of the hidden layer.
         let l_w_projection1 = w_projection1.add(layer * embedding_size * hidden_dim);
-        //matrix_mul(hidden_dim_buffer1, temp_buffer, l_w_projection1, embedding_size, hidden_dim);
+        matrix_mul(hidden_dim_buffer1, temp_buffer, l_w_projection1, embedding_size, hidden_dim);
 
         let l_w_projection2 = w_projection2.add(layer * embedding_size * hidden_dim);
-        //matrix_mul(hidden_dim_buffer2, temp_buffer, l_w_projection2, embedding_size, hidden_dim);
+        matrix_mul(hidden_dim_buffer2, temp_buffer, l_w_projection2, embedding_size, hidden_dim);
 
         // Compute the activation function between the 2 projections of the hidden layer. In this case
         // SwiGLU
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn head_ffn(
         // linear projections, one of which is first passed through a sigmoid function.
         // https://arxiv.org/pdf/2002.05202
         for idx in 0..hidden_dim {
-            let mut val = *hidden_dim_buffer2.add(idx);
+            let mut val = *hidden_dim_buffer1.add(idx);
             // Compute the silu = x * sigmoid(x)
             val *= 1.0f32 / (1.0f32 + (-val).exp());
             // Multiply with the second projection
@@ -67,7 +67,7 @@ pub unsafe extern "C" fn head_ffn(
             *hidden_dim_buffer1.add(idx) = val;
         }
         // Activate the hidden layer
-        //matrix_mul(temp_buffer, hidden_dim_buffer1, w_projection_activation.add(layer * embedding_size * hidden_dim), hidden_dim, embedding_size);
+        matrix_mul(temp_buffer, hidden_dim_buffer1, w_projection_activation.add(layer * embedding_size * hidden_dim), hidden_dim, embedding_size);
 
         // Adding residual connection
         for idx in 0..embedding_size {
@@ -186,11 +186,12 @@ pub unsafe extern "C" fn rms_norm(
 
     // Parameter to make sure the squared sum over size is not intepreted as zero.
     let epsilon = 1e-5;
-    let rms: f32 = epsilon + (1.0f32 / size as f32 + squared_sum).sqrt();
+    squared_sum += epsilon;
+    let rms: f32 = 1.0f32 /  squared_sum.sqrt();
 
     // Normalize / Activate the layer using rms
     for idx in 0..size {
-        unsafe { *out.add(idx) = *input.add(idx) * *weights.add(idx) / rms };
+        unsafe { *out.add(idx) = *input.add(idx) * *weights.add(idx) * rms };
     }
 }
 
