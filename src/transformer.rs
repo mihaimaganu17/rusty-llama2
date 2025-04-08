@@ -1,11 +1,11 @@
 #[repr(C)]
 pub struct Transformer {
     // The configuration we read from the file
-    config: Config,
+    pub config: Config,
     // The weights of the model
-    weights: Weights,
+    pub weights: Weights,
     // All the buffers needed for one forward pass through the entire model
-    state: State,
+    pub state: State,
 }
 
 #[repr(C)]
@@ -31,8 +31,8 @@ pub struct Weights {
     // Token embedding table (vocab_size, embedding_size)
     token_embedding_table: *const f32,
     // Weights for RMS norms, each with (layer_count, embedding_size) size
-    rms_att_weights: *const f32,
-    rms_ffn_weights: *const f32,
+    w_rms_att: *const f32,
+    w_rms_ffn: *const f32,
     // Weights for attention
     // Queries: (layer_count, embedding_size, heads_count * head_size)
     w_queries: *const f32,
@@ -49,7 +49,7 @@ pub struct Weights {
     w_projection_activation: *const f32,
 
     // Final RMS norm, before logits
-    rms_final_weights: *const f32,
+    w_rms_final: *const f32,
     // (optional) classifier weights for the logits, on the last layer
     w_cls: *const f32,
 }

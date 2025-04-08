@@ -1,6 +1,6 @@
 mod transformer;
 
-use transformer::KVCache;
+use transformer::{KVCache, Transformer};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn hello_from_rust() {
@@ -31,32 +31,46 @@ pub unsafe fn softmax(input: *mut f32, size: usize) {
     }
 }
 
-/*
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn forward(
+    // All the tranformer's parameters
+    transformer: &Transformer,
+    // Token based on which we predict the next
+    token: usize,
+    // Token's position
+    position: usize,
 ) -> *const f32 {
-    let kv_dim = embedding_size * kv_heads_count / heads_count;
+    let config = transformer.config;
+    let state = transformer.state;
+    let weights = transformer.weights;
+
+    let kv_dim = config.embedding_size * config.kv_heads_count / config.heads_count;
+    let curr_token_emb = state.token_emb.add(token * config.embedding_size);
     // Forward all the layers in the network
-    for layer in 0..layers {
+    for layer in 0..config.layer_count {
         // 1. RMS Norm for attention
         // Go to the weights for this layer
-        let l_w_rms_attention = w_rms_attention.add(layer * embedding_size);
+        let l_w_rms_att = weights.w_rms_att.add(layer * config.embedding_size);
         // Normalize the layer
-        rms_norm(temp_buffer, input, l_w_rms_attention, embedding_size);
+        rms_norm(state.token_emb_res, curr_token_emb, l_w_rms_att, config.embedding_size);
 
         // Get the keys and values cache for this layer
-        let cache = kv_cache(keys, values, layer, seq_len, kv_dim, pos);
+        let cache = kv_cache(state.cache.keys, state.cache.values, layer, config.seq_len, kv_dim, position);
         let l_keys = cache.keys;
-        let l_value = cache.values;
+        let l_values = cache.values;
 
+        let embedding_size = config.embedding_size;
         // Compute queries, keys and values for this layer
-        let l_w_queries = w_queries.add(layer * embedding_size * embedding_size);
-        matrix_mul(l_q, q, l_w_queries, embedding_size, embedding_size);
-        let l_w_keys = w_keys.add(layer * embedding_size * kv_dim);
-        matrix_mul(l_keys, l_w_keys, embedding_size, kv_dim);
-        let l_w_values = w_values.add(layer * embedding_size * kv_dim);
-        matrix_mul(l_values, l_w_values, embedding_size, kv_dim);
+        let l_w_queries = weights.w_queries.add(layer * embedding_size * embedding_size);
+        matrix_mul(state.queries, state.token_emb_res, l_w_queries, embedding_size, embedding_size);
 
+        let l_w_keys = weights.w_keys.add(layer * embedding_size * kv_dim);
+        matrix_mul(l_keys, state.token_emb_res, l_w_keys, embedding_size, kv_dim);
+
+        let l_w_values = weights.w_values.add(layer * embedding_size * kv_dim);
+        matrix_mul(l_values, state.token_emb_res, l_w_values, embedding_size, kv_dim);
+
+        /*
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
         rope(dim, pos, head_size, kv_dim, s->q, s->k);
 
@@ -90,10 +104,9 @@ pub unsafe extern "C" fn forward(
             s->hb2,
             s->xb,
             w->rms_ffn_weight
-        );
+        );*/
     }
 }
-*/
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn head_ffn(
