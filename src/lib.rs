@@ -1,3 +1,7 @@
+mod transformer;
+
+use transformer::KVCache;
+
 #[unsafe(no_mangle)]
 pub extern "C" fn hello_from_rust() {
     println!("Hello from Rust!");
@@ -26,6 +30,70 @@ pub unsafe fn softmax(input: *mut f32, size: usize) {
         }
     }
 }
+
+/*
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn forward(
+) -> *const f32 {
+    let kv_dim = embedding_size * kv_heads_count / heads_count;
+    // Forward all the layers in the network
+    for layer in 0..layers {
+        // 1. RMS Norm for attention
+        // Go to the weights for this layer
+        let l_w_rms_attention = w_rms_attention.add(layer * embedding_size);
+        // Normalize the layer
+        rms_norm(temp_buffer, input, l_w_rms_attention, embedding_size);
+
+        // Get the keys and values cache for this layer
+        let cache = kv_cache(keys, values, layer, seq_len, kv_dim, pos);
+        let l_keys = cache.keys;
+        let l_value = cache.values;
+
+        // Compute queries, keys and values for this layer
+        let l_w_queries = w_queries.add(layer * embedding_size * embedding_size);
+        matrix_mul(l_q, q, l_w_queries, embedding_size, embedding_size);
+        let l_w_keys = w_keys.add(layer * embedding_size * kv_dim);
+        matrix_mul(l_keys, l_w_keys, embedding_size, kv_dim);
+        let l_w_values = w_values.add(layer * embedding_size * kv_dim);
+        matrix_mul(l_values, l_w_values, embedding_size, kv_dim);
+
+        // RoPE relative positional encoding: complex-valued rotate q and k in each head
+        rope(dim, pos, head_size, kv_dim, s->q, s->k);
+
+        // multihead attention. iterate over all heads
+        multihead_attention(
+            p->n_heads,
+            p->n_kv_heads,
+            head_size,
+            l,
+            p->seq_len,
+            p->dim,
+            pos,
+            s->att,
+            s->q,
+            s->key_cache,
+            s->value_cache,
+            s->xb,
+            w->wo,
+            s->xb2,
+            x);
+
+        head_ffn(
+            l,
+            dim,
+            hidden_dim,
+            x,
+            w->w1,
+            w->w3,
+            w->w2,
+            s->hb,
+            s->hb2,
+            s->xb,
+            w->rms_ffn_weight
+        );
+    }
+}
+*/
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn head_ffn(
@@ -153,12 +221,6 @@ pub unsafe extern "C" fn multihead_attention(
     for idx in 0..embedding_size {
         unsafe { *input.add(idx) += *heads_activation.add(idx) };
     }
-}
-
-#[repr(C)]
-pub struct KVCache {
-    keys: *const f32,
-    values: *const f32,
 }
 
 /// Root mean squared normalization or RMSNorm is a layer optimisation technique proved to be
