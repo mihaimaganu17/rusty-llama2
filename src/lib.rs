@@ -110,6 +110,13 @@ pub unsafe extern "C" fn forward(
             weights.w_rms_att() as *mut f32,
         );
     }
+
+    // Final rmsnorm
+    rms_norm(state.token_emb() as *mut f32, state.token_emb(), weights.w_rms_final(), emb_size);
+
+    // Classifier into logits
+    matrix_mul(state.logits() as *mut f32, state.token_emb(), weights.w_cls(), emb_size, config.vocab_size());
+
     state.logits()
 }
 
