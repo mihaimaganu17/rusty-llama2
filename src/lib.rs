@@ -96,20 +96,19 @@ pub unsafe extern "C" fn forward(
             state.token_emb() as *mut f32,
         );
 
-        /*
         head_ffn(
-            l,
-            dim,
-            hidden_dim,
-            x,
-            w->w1,
-            w->w3,
-            w->w2,
-            s->hb,
-            s->hb2,
-            s->xb,
-            w->rms_ffn_weight
-        );*/
+            layer,
+            emb_size,
+            config.hidden_dim(),
+            state.token_emb() as *mut f32,
+            weights.w_projection1() as *mut f32,
+            weights.w_projection2() as *mut f32,
+            weights.w_projection_activation() as *mut f32,
+            state.hidden_buffer1() as *mut f32,
+            state.hidden_buffer2() as *mut f32,
+            state.token_emb_res() as *mut f32,
+            weights.w_rms_att() as *mut f32,
+        );
     }
     state.logits()
 }
