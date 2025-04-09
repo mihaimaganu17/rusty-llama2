@@ -47,7 +47,10 @@ pub unsafe extern "C" fn forward(
     let emb_size = config.embedding_size();
 
     let kv_dim = emb_size * config.kv_heads_count() / config.heads_count();
-    let curr_token_emb = state.token_emb().add(token * emb_size);
+    // Get to the offset for the current's token embedding in the table
+    let curr_token_emb = weights.token_embedding_table().add(token * emb_size);
+    // Copy it in the state for processing
+    core::ptr::copy_nonoverlapping(curr_token_emb, state.token_emb() as *mut f32, core::mem::size_of::<f32>() * emb_size);
     // Forward all the layers in the network
     for layer in 0..config.layer_count() {
         // 1. RMS Norm for attention
@@ -90,7 +93,7 @@ pub unsafe extern "C" fn forward(
             state.token_emb_res() as *mut f32,
             weights.w_att_out() as *mut f32,
             state.temp_buffer() as *mut f32,
-            curr_token_emb as *mut f32,
+            state.token_emb() as *mut f32,
         );
 
         /*
