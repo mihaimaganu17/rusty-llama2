@@ -140,7 +140,6 @@ impl Weights {
         self.w_projection_activation
     }
 
-
     // Final RMS norm, before logits
     pub fn w_rms_final(&self) -> *const f32 {
         self.w_rms_final
@@ -150,7 +149,6 @@ impl Weights {
     pub fn w_cls(&self) -> *const f32 {
         self.w_cls
     }
-
 }
 
 #[repr(C)]
@@ -265,4 +263,3 @@ pub struct KVCache {
     pub keys: *const f32,
     pub values: *const f32,
 }
-

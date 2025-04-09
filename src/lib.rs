@@ -50,32 +50,66 @@ pub unsafe extern "C" fn forward(
     // Get to the offset for the current's token embedding in the table
     let curr_token_emb = weights.token_embedding_table().add(token * emb_size);
     // Copy it in the state for processing
-    core::ptr::copy_nonoverlapping(curr_token_emb, state.token_emb() as *mut f32, core::mem::size_of::<f32>() * emb_size);
+    core::ptr::copy_nonoverlapping(
+        curr_token_emb,
+        state.token_emb() as *mut f32,
+        core::mem::size_of::<f32>() * emb_size,
+    );
     // Forward all the layers in the network
     for layer in 0..config.layer_count() {
         // 1. RMS Norm for attention
         // Go to the weights for this layer
         let l_w_rms_att = weights.w_rms_att().add(layer * emb_size);
         // Normalize the layer
-        rms_norm(state.token_emb_res() as *mut f32, curr_token_emb, l_w_rms_att, emb_size);
+        rms_norm(
+            state.token_emb_res() as *mut f32,
+            curr_token_emb,
+            l_w_rms_att,
+            emb_size,
+        );
 
         // Get the keys and values cache for this layer
         state.layer_cache(layer, config.seq_len(), kv_dim, position);
 
         // Compute queries, keys and values for this layer
         let l_w_queries = weights.w_queries().add(layer * emb_size * emb_size);
-        matrix_mul(state.queries() as *mut f32, state.token_emb_res(), l_w_queries, emb_size, emb_size);
+        matrix_mul(
+            state.queries() as *mut f32,
+            state.token_emb_res(),
+            l_w_queries,
+            emb_size,
+            emb_size,
+        );
 
         let l_w_keys = weights.w_keys().add(layer * emb_size * kv_dim);
-        matrix_mul(state.keys() as *mut f32, state.token_emb_res(), l_w_keys, emb_size, kv_dim);
+        matrix_mul(
+            state.keys() as *mut f32,
+            state.token_emb_res(),
+            l_w_keys,
+            emb_size,
+            kv_dim,
+        );
 
         let l_w_values = weights.w_values().add(layer * emb_size * kv_dim);
-        matrix_mul(state.values() as *mut f32, state.token_emb_res(), l_w_values, emb_size, kv_dim);
+        matrix_mul(
+            state.values() as *mut f32,
+            state.token_emb_res(),
+            l_w_values,
+            emb_size,
+            kv_dim,
+        );
 
         // The head size is the total embedding distributed across all the transformer's heads
         let head_size = emb_size / config.heads_count();
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
-        rope(emb_size, position, head_size, kv_dim, state.queries() as *mut f32, state.keys() as *mut f32);
+        rope(
+            emb_size,
+            position,
+            head_size,
+            kv_dim,
+            state.queries() as *mut f32,
+            state.keys() as *mut f32,
+        );
 
         // multihead attention. iterate over all heads
         multihead_attention(
@@ -112,10 +146,21 @@ pub unsafe extern "C" fn forward(
     }
 
     // Final rmsnorm
-    rms_norm(state.token_emb() as *mut f32, state.token_emb(), weights.w_rms_final(), emb_size);
+    rms_norm(
+        state.token_emb() as *mut f32,
+        state.token_emb(),
+        weights.w_rms_final(),
+        emb_size,
+    );
 
     // Classifier into logits
-    matrix_mul(state.logits() as *mut f32, state.token_emb(), weights.w_cls(), emb_size, config.vocab_size());
+    matrix_mul(
+        state.logits() as *mut f32,
+        state.token_emb(),
+        weights.w_cls(),
+        emb_size,
+        config.vocab_size(),
+    );
 
     state.logits()
 }
@@ -140,10 +185,22 @@ pub unsafe extern "C" fn head_ffn(
         rms_norm(temp_buffer, input, l_w_rms_ffn, embedding_size);
         // Compute the 2 learned parrallel projections of the hidden layer.
         let l_w_projection1 = w_projection1.add(layer * embedding_size * hidden_dim);
-        matrix_mul(hidden_dim_buffer1, temp_buffer, l_w_projection1, embedding_size, hidden_dim);
+        matrix_mul(
+            hidden_dim_buffer1,
+            temp_buffer,
+            l_w_projection1,
+            embedding_size,
+            hidden_dim,
+        );
 
         let l_w_projection2 = w_projection2.add(layer * embedding_size * hidden_dim);
-        matrix_mul(hidden_dim_buffer2, temp_buffer, l_w_projection2, embedding_size, hidden_dim);
+        matrix_mul(
+            hidden_dim_buffer2,
+            temp_buffer,
+            l_w_projection2,
+            embedding_size,
+            hidden_dim,
+        );
 
         // Compute the activation function between the 2 projections of the hidden layer. In this case
         // SwiGLU
@@ -160,7 +217,13 @@ pub unsafe extern "C" fn head_ffn(
             *hidden_dim_buffer1.add(idx) = val;
         }
         // Activate the hidden layer
-        matrix_mul(temp_buffer, hidden_dim_buffer1, w_projection_activation.add(layer * embedding_size * hidden_dim), hidden_dim, embedding_size);
+        matrix_mul(
+            temp_buffer,
+            hidden_dim_buffer1,
+            w_projection_activation.add(layer * embedding_size * hidden_dim),
+            hidden_dim,
+            embedding_size,
+        );
 
         // Adding residual connection
         for idx in 0..embedding_size {
@@ -198,41 +261,40 @@ pub unsafe extern "C" fn multihead_attention(
         let h_attention_scores = unsafe { attention_scores.add(h_idx * seq_len) };
         // For each time step / position in the sequence length including this one
         for pos in 0..=current_position {
-            let key_cache_offset = (layer * seq_len * kv_dim)
-                + (pos * kv_dim)
-                + ((h_idx / kv_mul) * head_size);
+            let key_cache_offset =
+                (layer * seq_len * kv_dim) + (pos * kv_dim) + ((h_idx / kv_mul) * head_size);
             let h_keys = unsafe { keys_cache.add(key_cache_offset) };
             let mut score = 0.0f32;
             // Compute the attention scores
             for head_pos in 0..head_size {
-                unsafe {
-                    score += *h_keys.add(head_pos) * *h_queries.add(head_pos)
-                };
+                unsafe { score += *h_keys.add(head_pos) * *h_queries.add(head_pos) };
             }
             // Normalize and scale by the square root of the length
             score /= (head_size as f32).sqrt();
             unsafe { *h_attention_scores.add(pos) = score };
         }
         // Activate layer to get the attention weights, including current position
-        unsafe { softmax(h_attention_scores, current_position+1) };
+        unsafe { softmax(h_attention_scores, current_position + 1) };
 
         // Go to the right position in the output values
         let h_weight_attention = unsafe { weigh_attention.add(h_idx * head_size) };
         // Prepare the buffer to accumulate weighted attention
-        unsafe { h_weight_attention.write_bytes(0u8, head_size * core::mem::size_of::<f32>()); }
+        unsafe {
+            h_weight_attention.write_bytes(0u8, head_size * core::mem::size_of::<f32>());
+        }
         // For each of the positions
         for pos in 0..=current_position {
             // Get the values from the value cache
-            let h_values_cache_offset = (layer * seq_len * kv_dim)
-                + (pos * kv_dim)
-                + ((h_idx / kv_mul) * head_size);
+            let h_values_cache_offset =
+                (layer * seq_len * kv_dim) + (pos * kv_dim) + ((h_idx / kv_mul) * head_size);
             let h_values_cache = unsafe { values_cache.add(h_values_cache_offset) };
             let attention = unsafe { *h_attention_scores.add(pos) };
             // For each attention score in the entire head
             for head_pos in 0..head_size {
                 // Accumulate the weighted attention scores
-                unsafe { *h_weight_attention.add(head_pos) += attention
-                    * *h_values_cache.add(head_pos) };
+                unsafe {
+                    *h_weight_attention.add(head_pos) += attention * *h_values_cache.add(head_pos)
+                };
             }
         }
     }
@@ -240,7 +302,15 @@ pub unsafe extern "C" fn multihead_attention(
     let weights = unsafe { output_weights.add(layer * embedding_size * embedding_size) };
     // or
     // let out = output_weights.add(layer * (head_size * head_count) * embedding_size);
-    unsafe { matrix_mul(heads_activation, weigh_attention, weights, embedding_size, embedding_size) };
+    unsafe {
+        matrix_mul(
+            heads_activation,
+            weigh_attention,
+            weights,
+            embedding_size,
+            embedding_size,
+        )
+    };
 
     // Also connect the residual branch
     for idx in 0..embedding_size {
@@ -274,14 +344,13 @@ pub unsafe extern "C" fn rms_norm(
     // Parameter to make sure the squared sum over size is not intepreted as zero.
     let epsilon = 1e-5;
     squared_sum += epsilon;
-    let rms: f32 = 1.0f32 /  squared_sum.sqrt();
+    let rms: f32 = 1.0f32 / squared_sum.sqrt();
 
     // Normalize / Activate the layer using rms
     for idx in 0..size {
         unsafe { *out.add(idx) = *input.add(idx) * *weights.add(idx) * rms };
     }
 }
-
 
 /// Rotate position embeddings over the entire `embedding_size` space to the position `pos`.
 /// The `head_size` represents the dimension of a single attention head and `kv_dim` is the
