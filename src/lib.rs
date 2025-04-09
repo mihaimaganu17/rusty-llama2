@@ -40,36 +40,36 @@ pub unsafe extern "C" fn forward(
     // Token's position
     position: usize,
 ) -> *const f32 {
-    let config = transformer.config;
-    let state = transformer.state;
-    let weights = transformer.weights;
+    let config = &transformer.config;
+    let state = &transformer.state;
+    let weights = &transformer.weights;
 
     let emb_size = config.embedding_size();
 
     let kv_dim = emb_size * config.kv_heads_count() / config.heads_count();
-    let curr_token_emb = state.token_emb.add(token * config.emb_size());
+    let curr_token_emb = state.token_emb().add(token * emb_size);
     // Forward all the layers in the network
     for layer in 0..config.layer_count() {
         // 1. RMS Norm for attention
         // Go to the weights for this layer
-        let l_w_rms_att = weights.w_rms_att.add(layer * emb_size);
+        let l_w_rms_att = weights.w_rms_att().add(layer * emb_size);
         // Normalize the layer
-        rms_norm(state.token_emb_res, curr_token_emb, l_w_rms_att, emb_size);
+        rms_norm(state.token_emb_res() as *mut f32, curr_token_emb, l_w_rms_att, emb_size);
 
         // Get the keys and values cache for this layer
-        let cache = kv_cache(state.cache.keys, state.cache.values, layer, config.seq_len(), kv_dim, position);
-        let l_keys = cache.keys;
-        let l_values = cache.values;
+        let cache = kv_cache(state.cache().keys, state.cache().values, layer, config.seq_len(), kv_dim, position);
+        let l_keys = cache.keys as *mut f32;
+        let l_values = cache.values as *mut f32;
 
         // Compute queries, keys and values for this layer
-        let l_w_queries = weights.w_queries.add(layer * emb_size * emb_size);
-        matrix_mul(state.queries, state.token_emb_res, l_w_queries, emb_size, emb_size);
+        let l_w_queries = weights.w_queries().add(layer * emb_size * emb_size);
+        matrix_mul(state.queries() as *mut f32, state.token_emb_res(), l_w_queries, emb_size, emb_size);
 
-        let l_w_keys = weights.w_keys.add(layer * emb_size * kv_dim);
-        matrix_mul(l_keys, state.token_emb_res, l_w_keys, emb_size, kv_dim);
+        let l_w_keys = weights.w_keys().add(layer * emb_size * kv_dim);
+        matrix_mul(l_keys, state.token_emb_res(), l_w_keys, emb_size, kv_dim);
 
-        let l_w_values = weights.w_values.add(layer * emb_size * kv_dim);
-        matrix_mul(l_values, state.token_emb_res, l_w_values, emb_size, kv_dim);
+        let l_w_values = weights.w_values().add(layer * emb_size * kv_dim);
+        matrix_mul(l_values, state.token_emb_res(), l_w_values, emb_size, kv_dim);
 
         /*
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
@@ -107,6 +107,7 @@ pub unsafe extern "C" fn forward(
             w->rms_ffn_weight
         );*/
     }
+    state.logits()
 }
 
 #[unsafe(no_mangle)]

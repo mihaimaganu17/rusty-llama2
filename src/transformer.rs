@@ -91,6 +91,68 @@ pub struct Weights {
     w_cls: *const f32,
 }
 
+impl Weights {
+    // Token embedding table (vocab_size, embedding_size)
+    pub fn token_embedding_table(&self) -> *const f32 {
+        self.token_embedding_table
+    }
+
+    // Weights for RMS norms, each with (layer_count, embedding_size) size
+    pub fn w_rms_att(&self) -> *const f32 {
+        self.w_rms_att
+    }
+
+    pub fn w_rms_ffn(&self) -> *const f32 {
+        self.w_rms_ffn
+    }
+
+    // Weights for attention
+    // Queries: (layer_count, embedding_size, heads_count * head_size)
+    pub fn w_queries(&self) -> *const f32 {
+        self.w_queries
+    }
+
+    // Keys: (layer_count, embedding_size, kv_heads_count * head_size)
+    pub fn w_keys(&self) -> *const f32 {
+        self.w_keys
+    }
+
+    // Values: (layer_count, embedding_size, kv_heads_count * head_size)
+    pub fn w_values(&self) -> *const f32 {
+        self.w_values
+    }
+
+    // Attentions scores output weights: (layer_count, heads_count * head_size, embedding_size)
+    pub fn w_att_out(&self) -> *const f32 {
+        self.w_att_out
+    }
+
+    // Weights for FFN
+    pub fn w_projection1(&self) -> *const f32 {
+        self.w_projection1
+    }
+
+    pub fn w_projection2(&self) -> *const f32 {
+        self.w_projection2
+    }
+
+    pub fn w_projection_activation(&self) -> *const f32 {
+        self.w_projection_activation
+    }
+
+
+    // Final RMS norm, before logits
+    pub fn w_rms_final(&self) -> *const f32 {
+        self.w_rms_final
+    }
+
+    // (optional) classifier weights for the logits, on the last layer
+    pub fn w_cls(&self) -> *const f32 {
+        self.w_cls
+    }
+
+}
+
 #[repr(C)]
 pub struct State {
     // Activation at the current token (embedding_size,)
@@ -111,7 +173,61 @@ pub struct State {
     // Output logits (embedding_size, vocab_size)
     logits: *const f32,
     // Key - Value cache
-    kv_cache: KVCache,
+    cache: KVCache,
+}
+
+impl State {
+    // Activation at the current token (embedding_size,)
+    pub fn token_emb(&self) -> *const f32 {
+        self.token_emb
+    }
+
+    // Same embedding but connected with the residual branch (embedding_size,)
+    pub fn token_emb_res(&self) -> *const f32 {
+        self.token_emb_res
+    }
+
+    // Additional buffer for convenience
+    pub fn temp_buffer(&self) -> *const f32 {
+        self.temp_buffer
+    }
+
+    // Buffers for the 2 projections of the FFN's hidden layer, both (hidden_dim,)
+    pub fn hidden_buffer1(&self) -> *const f32 {
+        self.hidden_buffer1
+    }
+
+    pub fn hidden_buffer2(&self) -> *const f32 {
+        self.hidden_buffer2
+    }
+
+    // Buffers to hold the results for queries, keys, values, all of size (embedding_size,)
+    pub fn queries(&self) -> *const f32 {
+        self.queries
+    }
+
+    pub fn keys(&self) -> *const f32 {
+        self.keys
+    }
+
+    pub fn values(&self) -> *const f32 {
+        self.values
+    }
+
+    // Buffer for attention scores (heads_count, seq_len)
+    pub fn att_scores(&self) -> *const f32 {
+        self.att_scores
+    }
+
+    // Output logits (embedding_size, vocab_size)
+    pub fn logits(&self) -> *const f32 {
+        self.logits
+    }
+
+    // Key - Value cache
+    pub fn cache(&self) -> &KVCache {
+        &self.cache
+    }
 }
 
 #[repr(C)]
