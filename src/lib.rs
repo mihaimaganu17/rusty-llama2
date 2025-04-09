@@ -34,14 +34,14 @@ pub unsafe fn softmax(input: *mut f32, size: usize) {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn forward(
     // All the tranformer's parameters
-    transformer: &Transformer,
+    transformer: &mut Transformer,
     // Token based on which we predict the next
     token: usize,
     // Token's position
     position: usize,
 ) -> *const f32 {
     let config = &transformer.config;
-    let state = &transformer.state;
+    let state = &mut transformer.state;
     let weights = &transformer.weights;
 
     let emb_size = config.embedding_size();
@@ -57,24 +57,24 @@ pub unsafe extern "C" fn forward(
         rms_norm(state.token_emb_res() as *mut f32, curr_token_emb, l_w_rms_att, emb_size);
 
         // Get the keys and values cache for this layer
-        let cache = kv_cache(state.cache().keys, state.cache().values, layer, config.seq_len(), kv_dim, position);
-        let l_keys = cache.keys as *mut f32;
-        let l_values = cache.values as *mut f32;
+        state.layer_cache(layer, config.seq_len(), kv_dim, position);
 
         // Compute queries, keys and values for this layer
         let l_w_queries = weights.w_queries().add(layer * emb_size * emb_size);
         matrix_mul(state.queries() as *mut f32, state.token_emb_res(), l_w_queries, emb_size, emb_size);
 
         let l_w_keys = weights.w_keys().add(layer * emb_size * kv_dim);
-        matrix_mul(l_keys, state.token_emb_res(), l_w_keys, emb_size, kv_dim);
+        matrix_mul(state.keys() as *mut f32, state.token_emb_res(), l_w_keys, emb_size, kv_dim);
 
         let l_w_values = weights.w_values().add(layer * emb_size * kv_dim);
-        matrix_mul(l_values, state.token_emb_res(), l_w_values, emb_size, kv_dim);
+        matrix_mul(state.values() as *mut f32, state.token_emb_res(), l_w_values, emb_size, kv_dim);
+
+        // The head size is the total embedding distributed across all the transformer's heads
+        let head_size = emb_size / config.heads_count();
+        // RoPE relative positional encoding: complex-valued rotate q and k in each head
+        //rope(emb_size, position, head_size, kv_dim, state.querires(), s);
 
         /*
-        // RoPE relative positional encoding: complex-valued rotate q and k in each head
-        rope(dim, pos, head_size, kv_dim, s->q, s->k);
-
         // multihead attention. iterate over all heads
         multihead_attention(
             p->n_heads,
@@ -272,37 +272,6 @@ pub unsafe extern "C" fn rms_norm(
     }
 }
 
-/// Given a certain `layer` move the `keys` and `value` pointers to the cache position for that
-/// layer and that `position` in the sequence.
-/// # Safety
-/// The cache has the following dimension:
-/// (layers, seq_len, embedding_size)
-/// Which means that for each layer, we have the same number of key and value vectors to the number
-/// of characters in the sequence. Each of which have the `embedding_size` which is the size of the
-/// transformer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn kv_cache(
-    keys: *const f32,
-    values: *const f32,
-    layer: usize,
-    seq_len: usize,
-    kv_dim: usize,
-    position: usize,
-) -> KVCache {
-    // Go to the desired layer
-    let layer_cache = layer * (seq_len * kv_dim);
-    // Go to the desired position
-    let position_cache = layer_cache + position * kv_dim;
-
-    unsafe {
-        // Get pointer to the keys cache
-        let keys = keys.add(position_cache);
-        // Get pointer to the values cache
-        let values = values.add(position_cache);
-
-        KVCache { keys, values }
-    }
-}
 
 /// Rotate position embeddings over the entire `embedding_size` space to the position `pos`.
 /// The `head_size` represents the dimension of a single attention head and `kv_dim` is the
