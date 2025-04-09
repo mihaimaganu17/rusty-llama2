@@ -26,6 +26,43 @@ pub struct Config {
     seq_len: usize,
 }
 
+impl Config {
+    // Tranformer dimension and the size occupied by the embedding for each token
+    pub fn embedding_size(&self) -> usize {
+        self.embedding_size
+    }
+
+    // Dimension for the hidden layer of the FFN network which cumullates two projections
+    pub fn hidden_dim(&self) -> usize {
+        self.hidden_dim
+    }
+
+    // Total number of layers in the transformer
+    pub fn layer_count(&self) -> usize {
+        self.layer_count
+    }
+
+    // Number of attention/query heads in the transformer
+    pub fn heads_count(&self) -> usize {
+        self.heads_count
+    }
+
+    // Number of key/value heads. Can be less than query heads because of multiquery
+    pub fn kv_heads_count(&self) -> usize {
+        self.kv_heads_count
+    }
+
+    // Vocabulary size
+    pub fn vocab_size(&self) -> usize {
+        self.vocab_size
+    }
+
+    // Maximum sequence length
+    pub fn seq_len(&self) -> usize {
+        self.seq_len
+    }
+}
+
 #[repr(C)]
 pub struct Weights {
     // Token embedding table (vocab_size, embedding_size)
