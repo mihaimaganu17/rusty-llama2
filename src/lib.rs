@@ -74,25 +74,26 @@ pub unsafe extern "C" fn forward(
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
         rope(emb_size, position, head_size, kv_dim, state.queries() as *mut f32, state.keys() as *mut f32);
 
-        /*
         // multihead attention. iterate over all heads
         multihead_attention(
-            p->n_heads,
-            p->n_kv_heads,
+            config.heads_count(),
+            config.kv_heads_count(),
             head_size,
-            l,
-            p->seq_len,
-            p->dim,
-            pos,
-            s->att,
-            s->q,
-            s->key_cache,
-            s->value_cache,
-            s->xb,
-            w->wo,
-            s->xb2,
-            x);
+            layer,
+            config.seq_len(),
+            emb_size,
+            position,
+            state.att_scores() as *mut f32,
+            state.queries() as *mut f32,
+            state.cache().keys as *mut f32,
+            state.cache().values as *mut f32,
+            state.token_emb_res() as *mut f32,
+            weights.w_att_out() as *mut f32,
+            state.temp_buffer() as *mut f32,
+            curr_token_emb as *mut f32,
+        );
 
+        /*
         head_ffn(
             l,
             dim,
