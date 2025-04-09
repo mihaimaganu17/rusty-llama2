@@ -1,6 +1,6 @@
 mod transformer;
 
-use transformer::{KVCache, Transformer};
+use transformer::Transformer;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn hello_from_rust() {
@@ -72,7 +72,7 @@ pub unsafe extern "C" fn forward(
         // The head size is the total embedding distributed across all the transformer's heads
         let head_size = emb_size / config.heads_count();
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
-        //rope(emb_size, position, head_size, kv_dim, state.querires(), s);
+        rope(emb_size, position, head_size, kv_dim, state.queries() as *mut f32, state.keys() as *mut f32);
 
         /*
         // multihead attention. iterate over all heads
