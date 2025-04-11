@@ -117,6 +117,20 @@ typedef struct {
     ssize_t file_size; // size of the checkpoint file in bytes
 } Transformer;
 
+extern float* forward(
+    Transformer* transformer,
+    int token,
+    int position
+);
+
+extern void layer_cache(
+    RunState* state,
+    int layer,
+    int seq_len,
+    int kv_dim,
+    int position
+);
+
 void malloc_run_state(RunState* s, Config* p) {
     // we calloc instead of malloc to keep valgrind happy
     int kv_dim = (p->dim * p->n_kv_heads) / p->n_heads;
@@ -271,7 +285,7 @@ void matmul(float* xout, float* x, float* w, int n, int d) {
     }
 }
 
-float* forward(Transformer* transformer, int token, int pos) {
+float* _forward(Transformer* transformer, int token, int pos) {
 
     // a few convenience variables
     Config* p = &transformer->config;
@@ -295,11 +309,7 @@ float* forward(Transformer* transformer, int token, int pos) {
         // Go to that layers weights and multiply by the input
         rms_norm(s->xb, x, w->rms_att_weight + l*dim, dim);
 
-        // key and value point to the kv cache
-        struct KVCache cache;
-        cache = kv_cache(s->key_cache, s->value_cache, l, p->seq_len, kv_dim, pos);
-        s->k = cache.keys;
-        s->v = cache.values;
+        layer_cache(s, l, p->seq_len, kv_dim, pos);
 
         // qkv matmuls for this position
         matrix_mul(s->q, s->xb, w->wq + l*dim*dim, dim, dim);

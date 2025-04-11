@@ -40,129 +40,131 @@ pub unsafe extern "C" fn forward(
     // Token's position
     position: usize,
 ) -> *const f32 {
-    let config = &transformer.config;
-    let state = &mut transformer.state;
-    let weights = &transformer.weights;
+    unsafe {
+        let config = &transformer.config;
+        let state = &mut transformer.state;
+        let weights = &transformer.weights;
 
-    let emb_size = config.embedding_size();
+        let emb_size = config.embedding_size();
 
-    let kv_dim = emb_size * config.kv_heads_count() / config.heads_count();
-    // Get to the offset for the current's token embedding in the table
-    let curr_token_emb = weights.token_embedding_table().add(token * emb_size);
-    // Copy it in the state for processing
-    core::ptr::copy_nonoverlapping(
-        curr_token_emb,
-        state.token_emb() as *mut f32,
-        core::mem::size_of::<f32>() * emb_size,
-    );
-    // Forward all the layers in the network
-    for layer in 0..config.layer_count() {
-        // 1. RMS Norm for attention
-        // Go to the weights for this layer
-        let l_w_rms_att = weights.w_rms_att().add(layer * emb_size);
-        // Normalize the layer
-        rms_norm(
-            state.token_emb_res() as *mut f32,
+        let kv_dim = emb_size * config.kv_heads_count() / config.heads_count();
+        // Get to the offset for the current's token embedding in the table
+        let curr_token_emb = weights.token_embedding_table().add(token * emb_size);
+        // Copy it in the state for processing
+        core::ptr::copy_nonoverlapping(
             curr_token_emb,
-            l_w_rms_att,
-            emb_size,
-        );
-
-        // Get the keys and values cache for this layer
-        state.layer_cache(layer, config.seq_len(), kv_dim, position);
-
-        // Compute queries, keys and values for this layer
-        let l_w_queries = weights.w_queries().add(layer * emb_size * emb_size);
-        matrix_mul(
-            state.queries() as *mut f32,
-            state.token_emb_res(),
-            l_w_queries,
-            emb_size,
-            emb_size,
-        );
-
-        let l_w_keys = weights.w_keys().add(layer * emb_size * kv_dim);
-        matrix_mul(
-            state.keys() as *mut f32,
-            state.token_emb_res(),
-            l_w_keys,
-            emb_size,
-            kv_dim,
-        );
-
-        let l_w_values = weights.w_values().add(layer * emb_size * kv_dim);
-        matrix_mul(
-            state.values() as *mut f32,
-            state.token_emb_res(),
-            l_w_values,
-            emb_size,
-            kv_dim,
-        );
-
-        // The head size is the total embedding distributed across all the transformer's heads
-        let head_size = emb_size / config.heads_count();
-        // RoPE relative positional encoding: complex-valued rotate q and k in each head
-        rope(
-            emb_size,
-            position,
-            head_size,
-            kv_dim,
-            state.queries() as *mut f32,
-            state.keys() as *mut f32,
-        );
-
-        // multihead attention. iterate over all heads
-        multihead_attention(
-            config.heads_count(),
-            config.kv_heads_count(),
-            head_size,
-            layer,
-            config.seq_len(),
-            emb_size,
-            position,
-            state.att_scores() as *mut f32,
-            state.queries() as *mut f32,
-            state.cache().keys as *mut f32,
-            state.cache().values as *mut f32,
-            state.token_emb_res() as *mut f32,
-            weights.w_att_out() as *mut f32,
-            state.temp_buffer() as *mut f32,
             state.token_emb() as *mut f32,
+            core::mem::size_of::<f32>() * emb_size,
+        );
+        // Forward all the layers in the network
+        for layer in 0..config.layer_count() {
+            // 1. RMS Norm for attention
+            // Go to the weights for this layer
+            let l_w_rms_att = weights.w_rms_att().add(layer * emb_size);
+            // Normalize the layer
+            rms_norm(
+                state.token_emb_res() as *mut f32,
+                curr_token_emb,
+                l_w_rms_att,
+                emb_size,
+            );
+
+            // Get the keys and values cache for this layer
+            state.layer_cache(layer, config.seq_len(), kv_dim, position);
+
+            // Compute queries, keys and values for this layer
+            let l_w_queries = weights.w_queries().add(layer * emb_size * emb_size);
+            matrix_mul(
+                state.queries() as *mut f32,
+                state.token_emb_res(),
+                l_w_queries,
+                emb_size,
+                emb_size,
+            );
+
+            let l_w_keys = weights.w_keys().add(layer * emb_size * kv_dim);
+            matrix_mul(
+                state.keys() as *mut f32,
+                state.token_emb_res(),
+                l_w_keys,
+                emb_size,
+                kv_dim,
+            );
+
+            let l_w_values = weights.w_values().add(layer * emb_size * kv_dim);
+            matrix_mul(
+                state.values() as *mut f32,
+                state.token_emb_res(),
+                l_w_values,
+                emb_size,
+                kv_dim,
+            );
+
+            // The head size is the total embedding distributed across all the transformer's heads
+            let head_size = emb_size / config.heads_count();
+            // RoPE relative positional encoding: complex-valued rotate q and k in each head
+            rope(
+                emb_size,
+                position,
+                head_size,
+                kv_dim,
+                state.queries() as *mut f32,
+                state.keys() as *mut f32,
+            );
+
+            // multihead attention. iterate over all heads
+            multihead_attention(
+                config.heads_count(),
+                config.kv_heads_count(),
+                head_size,
+                layer,
+                config.seq_len(),
+                emb_size,
+                position,
+                state.att_scores() as *mut f32,
+                state.queries() as *mut f32,
+                state.cache().keys as *mut f32,
+                state.cache().values as *mut f32,
+                state.token_emb_res() as *mut f32,
+                weights.w_att_out() as *mut f32,
+                state.temp_buffer() as *mut f32,
+                state.token_emb() as *mut f32,
+            );
+
+            head_ffn(
+                layer,
+                emb_size,
+                config.hidden_dim(),
+                state.token_emb() as *mut f32,
+                weights.w_projection1() as *mut f32,
+                weights.w_projection2() as *mut f32,
+                weights.w_projection_activation() as *mut f32,
+                state.hidden_buffer1() as *mut f32,
+                state.hidden_buffer2() as *mut f32,
+                state.token_emb_res() as *mut f32,
+                weights.w_rms_att() as *mut f32,
+            );
+        }
+
+        // Final rmsnorm
+        rms_norm(
+            state.token_emb() as *mut f32,
+            state.token_emb(),
+            weights.w_rms_final(),
+            emb_size,
         );
 
-        head_ffn(
-            layer,
+        // Classifier into logits
+        matrix_mul(
+            state.logits() as *mut f32,
+            state.token_emb(),
+            weights.w_cls(),
             emb_size,
-            config.hidden_dim(),
-            state.token_emb() as *mut f32,
-            weights.w_projection1() as *mut f32,
-            weights.w_projection2() as *mut f32,
-            weights.w_projection_activation() as *mut f32,
-            state.hidden_buffer1() as *mut f32,
-            state.hidden_buffer2() as *mut f32,
-            state.token_emb_res() as *mut f32,
-            weights.w_rms_att() as *mut f32,
+            config.vocab_size(),
         );
+
+        state.logits()
     }
-
-    // Final rmsnorm
-    rms_norm(
-        state.token_emb() as *mut f32,
-        state.token_emb(),
-        weights.w_rms_final(),
-        emb_size,
-    );
-
-    // Classifier into logits
-    matrix_mul(
-        state.logits() as *mut f32,
-        state.token_emb(),
-        weights.w_cls(),
-        emb_size,
-        config.vocab_size(),
-    );
-
-    state.logits()
 }
 
 #[unsafe(no_mangle)]
