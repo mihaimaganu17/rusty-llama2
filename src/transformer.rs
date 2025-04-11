@@ -11,54 +11,54 @@ pub struct Transformer {
 #[repr(C)]
 pub struct Config {
     // Tranformer dimension and the size occupied by the embedding for each token
-    embedding_size: usize,
+    embedding_size: u32,
     // Dimension for the hidden layer of the FFN network which cumullates two projections
-    hidden_dim: usize,
+    hidden_dim: u32,
     // Total number of layers in the transformer
-    layer_count: usize,
+    layer_count: u32,
     // Number of attention/query heads in the transformer
-    heads_count: usize,
+    heads_count: u32,
     // Number of key/value heads. Can be less than query heads because of multiquery
-    kv_heads_count: usize,
+    kv_heads_count: u32,
     // Vocabulary size
-    vocab_size: usize,
+    vocab_size: u32,
     // Maximum sequence length
-    seq_len: usize,
+    seq_len: u32,
 }
 
 impl Config {
     // Tranformer dimension and the size occupied by the embedding for each token
-    pub fn embedding_size(&self) -> usize {
+    pub fn embedding_size(&self) -> u32 {
         self.embedding_size
     }
 
     // Dimension for the hidden layer of the FFN network which cumullates two projections
-    pub fn hidden_dim(&self) -> usize {
+    pub fn hidden_dim(&self) -> u32 {
         self.hidden_dim
     }
 
     // Total number of layers in the transformer
-    pub fn layer_count(&self) -> usize {
+    pub fn layer_count(&self) -> u32 {
         self.layer_count
     }
 
     // Number of attention/query heads in the transformer
-    pub fn heads_count(&self) -> usize {
+    pub fn heads_count(&self) -> u32 {
         self.heads_count
     }
 
     // Number of key/value heads. Can be less than query heads because of multiquery
-    pub fn kv_heads_count(&self) -> usize {
+    pub fn kv_heads_count(&self) -> u32 {
         self.kv_heads_count
     }
 
     // Vocabulary size
-    pub fn vocab_size(&self) -> usize {
+    pub fn vocab_size(&self) -> u32 {
         self.vocab_size
     }
 
     // Maximum sequence length
-    pub fn seq_len(&self) -> usize {
+    pub fn seq_len(&self) -> u32 {
         self.seq_len
     }
 }
@@ -238,10 +238,10 @@ impl State {
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn layer_cache(
         &mut self,
-        layer: usize,
-        seq_len: usize,
-        kv_dim: usize,
-        position: usize,
+        layer: u32,
+        seq_len: u32,
+        kv_dim: u32,
+        position: u32,
     ) {
         // Go to the desired layer
         let layer_cache = layer * (seq_len * kv_dim);
@@ -250,9 +250,9 @@ impl State {
 
         unsafe {
             // Get pointer to the keys cache
-            self.keys = self.cache.keys.add(position_cache);
+            self.keys = self.cache.keys.add(position_cache as usize);
             // Get pointer to the values cache
-            self.values = self.cache.values.add(position_cache);
+            self.values = self.cache.values.add(position_cache as usize);
         }
     }
 }

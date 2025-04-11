@@ -42,11 +42,12 @@ pub unsafe extern "C" fn forward(
 ) -> *const f32 {
     unsafe {
         let config = &transformer.config;
-        let state = &mut transformer.state;
+        let mut state = &transformer.state;
         let weights = &transformer.weights;
 
         let emb_size = config.embedding_size();
 
+        /*
         let kv_dim = emb_size * config.kv_heads_count() / config.heads_count();
         // Get to the offset for the current's token embedding in the table
         let curr_token_emb = weights.token_embedding_table().add(token * emb_size);
@@ -162,6 +163,7 @@ pub unsafe extern "C" fn forward(
             emb_size,
             config.vocab_size(),
         );
+        */
 
         state.logits()
     }
