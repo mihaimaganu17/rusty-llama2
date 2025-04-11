@@ -49,7 +49,9 @@ pub unsafe extern "C" fn forward(
 
         let kv_dim = (emb_size * config.kv_heads_count()) / config.heads_count();
         // Get to the offset for the current's token embedding in the table
-        let curr_token_emb = weights.token_embedding_table().add((token * emb_size) as usize);
+        let curr_token_emb = weights
+            .token_embedding_table()
+            .add((token * emb_size) as usize);
         // Copy it in the state for processing
         core::ptr::copy_nonoverlapping(
             curr_token_emb,
@@ -73,7 +75,9 @@ pub unsafe extern "C" fn forward(
             state.layer_cache(layer, config.seq_len(), kv_dim, position);
 
             // Compute queries, keys and values for this layer
-            let l_w_queries = weights.w_queries().add((layer * emb_size * emb_size) as usize);
+            let l_w_queries = weights
+                .w_queries()
+                .add((layer * emb_size * emb_size) as usize);
             matrix_mul(
                 state.queries() as *mut f32,
                 state.token_emb_res(),
