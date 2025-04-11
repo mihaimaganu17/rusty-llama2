@@ -117,7 +117,7 @@ typedef struct {
     ssize_t file_size; // size of the checkpoint file in bytes
 } Transformer;
 
-extern float* forward(
+extern float* _forward(
     Transformer* transformer,
     int token,
     int position
@@ -285,7 +285,7 @@ void matmul(float* xout, float* x, float* w, int n, int d) {
     }
 }
 
-float* _forward(Transformer* transformer, int token, int pos) {
+float* forward(Transformer* transformer, int token, int pos) {
 
     // a few convenience variables
     Config* p = &transformer->config;
@@ -745,7 +745,7 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
     int pos = 0;     // position in the sequence
     while (pos < steps) {
         // forward the transformer to get logits for the next token
-        float* logits = forward(&*transformer, token, pos);
+        float* logits = forward(transformer, token, pos);
 
         // advance the state machine
         if (pos < num_prompt_tokens - 1) {
@@ -865,7 +865,7 @@ void chat(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
         if (token == 2) { user_turn = 1; }
 
         // forward the transformer to get logits for the next token
-        float* logits = forward(&*transformer, token, pos);
+        float* logits = forward(transformer, token, pos);
         next = sample(sampler, logits);
         pos++;
 

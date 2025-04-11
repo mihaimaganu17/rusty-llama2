@@ -82,8 +82,8 @@ pub struct Weights {
 
     // Weights for FFN
     w_projection1: *const f32,
-    w_projection2: *const f32,
     w_projection_activation: *const f32,
+    w_projection2: *const f32,
 
     // Final RMS norm, before logits
     w_rms_final: *const f32,
@@ -171,7 +171,9 @@ pub struct State {
     // Output logits (embedding_size, vocab_size)
     logits: *const f32,
     // Key - Value cache
-    cache: KVCache,
+    //cache: KVCache,
+    pub cache_keys: *const f32,
+    pub cache_values: *const f32,
 }
 
 impl State {
@@ -223,9 +225,9 @@ impl State {
     }
 
     // Key - Value cache
-    pub fn cache(&self) -> &KVCache {
-        &self.cache
-    }
+    //pub fn cache(&self) -> &KVCache {
+    //    &self.cache
+    //}
 
     /// Given a certain `layer` move the `keys` and `value` pointers to the cache position for that
     /// layer and that `position` in the sequence.
@@ -250,9 +252,9 @@ impl State {
 
         unsafe {
             // Get pointer to the keys cache
-            self.keys = self.cache.keys.add(position_cache as usize);
+            self.keys = self.cache_keys.add(position_cache as usize);
             // Get pointer to the values cache
-            self.values = self.cache.values.add(position_cache as usize);
+            self.values = self.cache_values.add(position_cache as usize);
         }
     }
 }

@@ -64,7 +64,7 @@ pub unsafe extern "C" fn forward(
             // Normalize the layer
             rms_norm(
                 state.token_emb_res() as *mut f32,
-                curr_token_emb,
+                state.token_emb(),
                 l_w_rms_att,
                 emb_size as usize,
             );
@@ -123,8 +123,8 @@ pub unsafe extern "C" fn forward(
                 position as usize,
                 state.att_scores() as *mut f32,
                 state.queries() as *mut f32,
-                state.cache().keys as *mut f32,
-                state.cache().values as *mut f32,
+                state.cache_keys as *mut f32,
+                state.cache_values as *mut f32,
                 state.token_emb_res() as *mut f32,
                 weights.w_att_out() as *mut f32,
                 state.temp_buffer() as *mut f32,
