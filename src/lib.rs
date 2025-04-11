@@ -47,7 +47,7 @@ pub unsafe extern "C" fn forward(
 
         let emb_size = config.embedding_size();
 
-        let kv_dim = emb_size * config.kv_heads_count() / config.heads_count();
+        let kv_dim = (emb_size * config.kv_heads_count()) / config.heads_count();
         // Get to the offset for the current's token embedding in the table
         let curr_token_emb = weights.token_embedding_table().add((token * emb_size) as usize);
         // Copy it in the state for processing
@@ -142,7 +142,7 @@ pub unsafe extern "C" fn forward(
                 state.hidden_buffer1() as *mut f32,
                 state.hidden_buffer2() as *mut f32,
                 state.token_emb_res() as *mut f32,
-                weights.w_rms_att() as *mut f32,
+                weights.w_rms_ffn() as *mut f32,
             );
         }
 

@@ -117,7 +117,7 @@ typedef struct {
     ssize_t file_size; // size of the checkpoint file in bytes
 } Transformer;
 
-extern float* _forward(
+extern float* forward(
     Transformer* transformer,
     int token,
     int position
@@ -285,7 +285,7 @@ void matmul(float* xout, float* x, float* w, int n, int d) {
     }
 }
 
-float* forward(Transformer* transformer, int token, int pos) {
+float* _forward(Transformer* transformer, int token, int pos) {
 
     // a few convenience variables
     Config* p = &transformer->config;
