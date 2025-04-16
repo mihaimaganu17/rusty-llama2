@@ -1,4 +1,4 @@
-use crate::read::{Reader, Error as ReaderError};
+use crate::read::{Error as ReaderError, Reader};
 
 #[repr(C)]
 pub struct Transformer {
@@ -30,7 +30,7 @@ pub struct Config {
 
 impl Config {
     pub fn from_reader(reader: &mut Reader) -> Result<Self, ReaderError> {
-        let mut config = Config {
+        let config = Config {
             embedding_size: reader.read_u32()?,
             hidden_dim: reader.read_u32()?,
             layer_count: reader.read_u32()?,
@@ -40,7 +40,7 @@ impl Config {
             seq_len: reader.read_u32()?,
         };
         // Negative vocabulary size is the way of signaling unshared weights.
-        let shared_weights = if config.vocab_size > 0 { true } else { false };
+        let _shared_weights = if config.vocab_size > 0 { true } else { false };
 
         Ok(config)
     }
