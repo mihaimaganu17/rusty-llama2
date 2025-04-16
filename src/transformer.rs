@@ -1,3 +1,5 @@
+use crate::read::{Reader, Error as ReaderError};
+
 #[repr(C)]
 pub struct Transformer {
     // The configuration we read from the file
@@ -21,12 +23,28 @@ pub struct Config {
     // Number of key/value heads. Can be less than query heads because of multiquery
     kv_heads_count: u32,
     // Vocabulary size
-    vocab_size: u32,
+    vocab_size: i32,
     // Maximum sequence length
     seq_len: u32,
 }
 
 impl Config {
+    pub fn from_reader(reader: &mut Reader) -> Result<Self, ReaderError> {
+        let mut config = Config {
+            embedding_size: reader.read_u32()?,
+            hidden_dim: reader.read_u32()?,
+            layer_count: reader.read_u32()?,
+            heads_count: reader.read_u32()?,
+            kv_heads_count: reader.read_u32()?,
+            vocab_size: reader.read_i32()?,
+            seq_len: reader.read_u32()?,
+        };
+        // Negative vocabulary size is the way of signaling unshared weights.
+        let shared_weights = if config.vocab_size > 0 { true } else { false };
+
+        Ok(config)
+    }
+
     // Tranformer dimension and the size occupied by the embedding for each token
     pub fn embedding_size(&self) -> u32 {
         self.embedding_size
@@ -53,7 +71,7 @@ impl Config {
     }
 
     // Vocabulary size
-    pub fn vocab_size(&self) -> u32 {
+    pub fn vocab_size(&self) -> i32 {
         self.vocab_size
     }
 

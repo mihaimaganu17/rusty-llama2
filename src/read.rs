@@ -12,7 +12,7 @@ impl Reader {
         }
     }
 
-    fn read_i32(&mut self) -> Result<i32, Error> {
+    pub fn read_i32(&mut self) -> Result<i32, Error> {
         let mut buffer = [0; 4];
         buffer.copy_from_slice(self.data.get(self.pos..self.pos + 4)
             .ok_or(Error::InvalidPosition(self.pos))?
@@ -20,7 +20,7 @@ impl Reader {
         Ok(i32::from_le_bytes(buffer))
     }
 
-    fn read_u32(&mut self) -> Result<u32, Error> {
+    pub fn read_u32(&mut self) -> Result<u32, Error> {
         let mut buffer = [0; 4];
         buffer.copy_from_slice(self.data.get(self.pos..self.pos + 4)
             .ok_or(Error::InvalidPosition(self.pos))?
