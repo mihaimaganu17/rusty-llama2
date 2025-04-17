@@ -26,11 +26,20 @@ impl Reader {
         buffer.copy_from_slice(
             self.data
                 .get(self.pos..self.pos + 4)
-                .ok_or(Error::InvalidPosition(self.pos))?,
+                .ok_or(Error::InvalidPosition(self.pos))?
         );
         self.pos = self.pos.checked_add(core::mem::size_of::<u32>())
                 .ok_or(Error::AddOverflow(self.pos))?;
         Ok(u32::from_le_bytes(buffer))
+    }
+
+    pub fn read_f32(&mut self) -> Result<f32, Error> {
+        Ok(f32::from_le_bytes(
+            self.data
+                .get(self.pos..self.pos + 4)
+                .ok_or(Error::InvalidPosition(self.pos))?
+                .try_into().unwrap()
+        ))
     }
 }
 

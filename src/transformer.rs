@@ -18,7 +18,7 @@ impl Transformer {
         // Convert vocabulary size to it's positive value
         config.vocab_size = config.vocab_size.abs();
 
-        //let weights = Weights::from_reader(reader)?;
+        //let weights = WeightsSafe::from_reader(reader)?;
     }
 }
 
@@ -177,6 +177,40 @@ impl Weights {
     // (optional) classifier weights for the logits, on the last layer
     pub fn w_cls(&self) -> *const f32 {
         self.w_cls
+    }
+}
+
+// Same as `Weights` but for safe Rust
+#[repr(C)]
+pub struct WeightsSafe {
+    // Token embedding table (vocab_size, embedding_size)
+    token_embedding_table: Vec<f32>,
+    // Weights for RMS norms, each with (layer_count, embedding_size) size
+    w_rms_att: Vec<f32>,
+    w_rms_ffn: Vec<f32>,
+    // Weights for attention
+    // Queries: (layer_count, embedding_size, heads_count * head_size)
+    w_queries: Vec<f32>,
+    // Keys: (layer_count, embedding_size, kv_heads_count * head_size)
+    w_keys: Vec<f32>,
+    // Values: (layer_count, embedding_size, kv_heads_count * head_size)
+    w_values: Vec<f32>,
+    // Attentions scores output weights: (layer_count, heads_count * head_size, embedding_size)
+    w_att_out: Vec<f32>,
+
+    // Weights for FFN
+    w_projection1: Vec<f32>,
+    w_projection_activation: Vec<f32>,
+    w_projection2: Vec<f32>,
+
+    // Final RMS norm, before logits
+    w_rms_final: Vec<f32>,
+    // (optional) classifier weights for the logits, on the last layer
+    w_cls: Vec<f32>,
+}
+
+impl WeightsSafe {
+    pub fn from_reader(reader: &mut Reader) -> Result<Self, ReaderError> {
     }
 }
 
