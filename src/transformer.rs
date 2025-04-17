@@ -10,6 +10,18 @@ pub struct Transformer {
     pub state: State,
 }
 
+impl Transformer {
+    pub fn from_reader(reader: &mut Reader) -> Result<Self, ReaderError> {
+        let mut config = Config::from_reader(reader)?;
+        // Negative vocabulary size is the way of signaling unshared weights.
+        let shared_weights = if config.vocab_size > 0 { true } else { false };
+        // Convert vocabulary size to it's positive value
+        config.vocab_size = config.vocab_size.abs();
+
+        //let weights = Weights::from_reader(reader)?;
+    }
+}
+
 #[repr(C)]
 pub struct Config {
     // Tranformer dimension and the size occupied by the embedding for each token
@@ -39,8 +51,7 @@ impl Config {
             vocab_size: reader.read_i32()?,
             seq_len: reader.read_u32()?,
         };
-        // Negative vocabulary size is the way of signaling unshared weights.
-        let _shared_weights = if config.vocab_size > 0 { true } else { false };
+
 
         Ok(config)
     }
