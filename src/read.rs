@@ -16,6 +16,8 @@ impl Reader {
                 .get(self.pos..self.pos + 4)
                 .ok_or(Error::InvalidPosition(self.pos))?,
         );
+        self.pos = self.pos.checked_add(core::mem::size_of::<i32>())
+                .ok_or(Error::AddOverflow(self.pos))?;
         Ok(i32::from_le_bytes(buffer))
     }
 
@@ -26,10 +28,13 @@ impl Reader {
                 .get(self.pos..self.pos + 4)
                 .ok_or(Error::InvalidPosition(self.pos))?,
         );
+        self.pos = self.pos.checked_add(core::mem::size_of::<u32>())
+                .ok_or(Error::AddOverflow(self.pos))?;
         Ok(u32::from_le_bytes(buffer))
     }
 }
 
 pub enum Error {
     InvalidPosition(usize),
+    AddOverflow(usize),
 }
