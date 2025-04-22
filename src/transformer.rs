@@ -1,4 +1,5 @@
 use crate::read::{Error as ReaderError, Reader};
+use std::rc::Rc;
 
 #[repr(C)]
 pub struct Transformer {
@@ -11,14 +12,15 @@ pub struct Transformer {
 }
 
 impl Transformer {
-    pub fn from_reader(reader: &mut Reader) -> Result<Self, ReaderError> {
+    pub fn from_reader(reader: &mut Reader) -> Result<Self, Error> {
         let mut config = Config::from_reader(reader)?;
         // Negative vocabulary size is the way of signaling unshared weights.
         let shared_weights = if config.vocab_size > 0 { true } else { false };
         // Convert vocabulary size to it's positive value
         config.vocab_size = config.vocab_size.abs();
 
-        //let weights = WeightsSafe::from_reader(reader)?;
+        let weights = WeightsSafe::from_reader(reader, &config, shared_weights)?;
+        Err(Error::Bad)
     }
 }
 
@@ -41,7 +43,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_reader(reader: &mut Reader) -> Result<Self, ReaderError> {
+    pub fn from_reader(reader: &mut Reader) -> Result<Self, Error> {
         let config = Config {
             embedding_size: reader.read_u32()?,
             hidden_dim: reader.read_u32()?,
@@ -210,7 +212,66 @@ pub struct WeightsSafe {
 }
 
 impl WeightsSafe {
-    pub fn from_reader(reader: &mut Reader) -> Result<Self, ReaderError> {
+    pub fn from_reader(reader: &mut Reader, config: &Config, shared_weights: bool) -> Result<Self, Error> {
+        let head_size = config.embedding_size / config.heads_count;
+        let count = config.embedding_size * config.vocab_size as u32;
+        let token_embedding_table = Rc::new((0..count)
+            .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>());
+        assert_eq!(token_embedding_table.len(), count as usize);
+        let count = config.layer_count * config.embedding_size;
+        let w_rms_att = (0..count)
+            .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>();
+        assert_eq!(w_rms_att.len(), count as usize);
+        let count = config.layer_count * config.embedding_size;
+        let w_rms_ffn = (0..count)
+            .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>();
+        assert_eq!(w_rms_ffn.len(), count as usize);
+        let count = config.layer_count * config.embedding_size * config.heads_count * head_size;
+        let w_queries = (0..count)
+            .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>();
+        assert_eq!(w_queries.len(), count as usize);
+        let count = config.layer_count * config.embedding_size * config.kv_heads_count * head_size;
+        let w_keys= (0..count)
+            .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>();
+        assert_eq!(w_keys.len(), count as usize);
+        let count = config.layer_count * config.embedding_size * config.kv_heads_count * head_size;
+        let w_values = (0..count)
+            .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>();
+        assert_eq!(w_values.len(), count as usize);
+        let count = config.layer_count * config.heads_count * head_size * config.embedding_size;
+        let w_att_out = (0..count)
+            .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>();
+        assert_eq!(w_att_out.len(), count as usize);
+        let count = config.layer_count * config.embedding_size * config.hidden_dim;
+        let w_projection1 = (0..count)
+            .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>();
+        assert_eq!(w_projection1.len(), count as usize);
+        let count = config.layer_count * config.hidden_dim * config.embedding_size;
+        let w_projection_activation = (0..count)
+            .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>();
+        assert_eq!(w_projection_activation.len(), count as usize);
+        let count = config.layer_count * config.embedding_size * config.hidden_dim;
+        let w_projection2 = (0..count)
+            .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>();
+        assert_eq!(w_projection2.len(), count as usize);
+        let count = config.embedding_size;
+        let w_rms_final = (0..count)
+            .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>();
+        assert_eq!(w_rms_final.len(), count as usize);
+        // Skip what used to be freq_cis_real (RoPE) and freq_cis_imag(RoPE)
+        let count = config.seq_len * head_size;
+        let _ = (0..count).map(|_| reader.read_f32());
+
+
+        let count = config.embedding_size* config.vocab_size as u32;
+        let w_cls = if shared_weights {
+            token_embedding_table.clone()
+        } else {
+            Rc::new((0..count)
+            .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>())
+        };
+        assert_eq!(w_cls.len(), count as usize);
+        Err(Error::Bad)
     }
 }
 
@@ -327,4 +388,15 @@ pub struct KVCache {
     // Both of size (layer_count, seq_len, embedding_size)
     pub keys: *const f32,
     pub values: *const f32,
+}
+
+pub enum Error {
+    Bad,
+    Reader(crate::read::Error),
+}
+
+impl From<crate::read::Error> for Error {
+    fn from(err: crate::read::Error) -> Self {
+        Self::Reader(err)
+    }
 }

@@ -34,12 +34,15 @@ impl Reader {
     }
 
     pub fn read_f32(&mut self) -> Result<f32, Error> {
-        Ok(f32::from_le_bytes(
+        let value = f32::from_le_bytes(
             self.data
                 .get(self.pos..self.pos + 4)
                 .ok_or(Error::InvalidPosition(self.pos))?
                 .try_into().unwrap()
-        ))
+        );
+        self.pos = self.pos.checked_add(core::mem::size_of::<f32>())
+            .ok_or(Error::AddOverflow(self.pos))?;
+        Ok(value)
     }
 }
 
