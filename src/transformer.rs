@@ -1,4 +1,4 @@
-use crate::read::{Error as ReaderError, Reader};
+use crate::read::Reader;
 use std::rc::Rc;
 
 #[repr(C)]
@@ -186,7 +186,7 @@ impl Weights {
 #[repr(C)]
 pub struct WeightsSafe {
     // Token embedding table (vocab_size, embedding_size)
-    token_embedding_table: Vec<f32>,
+    token_embedding_table: Rc<Vec<f32>>,
     // Weights for RMS norms, each with (layer_count, embedding_size) size
     w_rms_att: Vec<f32>,
     w_rms_ffn: Vec<f32>,
@@ -208,7 +208,7 @@ pub struct WeightsSafe {
     // Final RMS norm, before logits
     w_rms_final: Vec<f32>,
     // (optional) classifier weights for the logits, on the last layer
-    w_cls: Vec<f32>,
+    w_cls: Rc<Vec<f32>>,
 }
 
 impl WeightsSafe {
@@ -271,7 +271,22 @@ impl WeightsSafe {
             .map(|_| reader.read_f32()).flatten().collect::<Vec<_>>())
         };
         assert_eq!(w_cls.len(), count as usize);
-        Err(Error::Bad)
+        Ok({
+            Self {
+                token_embedding_table,
+                w_rms_att,
+                w_rms_ffn,
+                w_queries,
+                w_keys,
+                w_values,
+                w_att_out,
+                w_projection1,
+                w_projection_activation,
+                w_projection2,
+                w_rms_final,
+                w_cls,
+            }
+        })
     }
 }
 
