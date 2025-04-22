@@ -4,7 +4,7 @@ pub struct Reader {
 }
 
 impl Reader {
-    fn from_file(path: &str) -> Self {
+    pub fn from_file(path: &str) -> Self {
         let data = std::fs::read(path).expect("Failed to read file");
         Self { data, pos: 0 }
     }

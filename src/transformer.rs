@@ -19,7 +19,7 @@ impl Transformer {
         // Convert vocabulary size to it's positive value
         config.vocab_size = config.vocab_size.abs();
 
-        let weights = WeightsSafe::from_reader(reader, &config, shared_weights)?;
+        let _weights = WeightsSafe::from_reader(reader, &config, shared_weights)?;
         Err(Error::Bad)
     }
 }
@@ -396,13 +396,6 @@ impl State {
             self.values = self.cache_values.add(position_cache as usize);
         }
     }
-}
-
-#[repr(C)]
-pub struct KVCache {
-    // Both of size (layer_count, seq_len, embedding_size)
-    pub keys: *const f32,
-    pub values: *const f32,
 }
 
 pub enum Error {
