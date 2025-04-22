@@ -16,8 +16,10 @@ impl Reader {
                 .get(self.pos..self.pos + 4)
                 .ok_or(Error::InvalidPosition(self.pos))?,
         );
-        self.pos = self.pos.checked_add(core::mem::size_of::<i32>())
-                .ok_or(Error::AddOverflow(self.pos))?;
+        self.pos = self
+            .pos
+            .checked_add(core::mem::size_of::<i32>())
+            .ok_or(Error::AddOverflow(self.pos))?;
         Ok(i32::from_le_bytes(buffer))
     }
 
@@ -26,10 +28,12 @@ impl Reader {
         buffer.copy_from_slice(
             self.data
                 .get(self.pos..self.pos + 4)
-                .ok_or(Error::InvalidPosition(self.pos))?
+                .ok_or(Error::InvalidPosition(self.pos))?,
         );
-        self.pos = self.pos.checked_add(core::mem::size_of::<u32>())
-                .ok_or(Error::AddOverflow(self.pos))?;
+        self.pos = self
+            .pos
+            .checked_add(core::mem::size_of::<u32>())
+            .ok_or(Error::AddOverflow(self.pos))?;
         Ok(u32::from_le_bytes(buffer))
     }
 
@@ -38,9 +42,12 @@ impl Reader {
             self.data
                 .get(self.pos..self.pos + 4)
                 .ok_or(Error::InvalidPosition(self.pos))?
-                .try_into().unwrap()
+                .try_into()
+                .unwrap(),
         );
-        self.pos = self.pos.checked_add(core::mem::size_of::<f32>())
+        self.pos = self
+            .pos
+            .checked_add(core::mem::size_of::<f32>())
             .ok_or(Error::AddOverflow(self.pos))?;
         Ok(value)
     }
