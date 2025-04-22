@@ -8,6 +8,11 @@ pub extern "C" fn hello_from_rust() {
     println!("Hello from Rust!");
 }
 
+/// Softmax activation function
+///
+/// # Safety
+///
+/// `input` must be allocated and have at least `size` elements
 pub unsafe fn softmax(input: *mut f32, size: usize) {
     unsafe {
         // Find the max value for numerical stability. This avoids the exponential function to
@@ -32,6 +37,11 @@ pub unsafe fn softmax(input: *mut f32, size: usize) {
     }
 }
 
+/// Feeds the `token` located at `position` through 1 forward pass through the `transformer` network
+///
+/// # Safety
+///
+/// TODO
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn forward(
     // All the tranformer's parameters
@@ -57,7 +67,7 @@ pub unsafe extern "C" fn forward(
         core::ptr::copy_nonoverlapping(
             curr_token_emb,
             state.token_emb() as *mut f32,
-            core::mem::size_of::<f32>() * emb_size as usize,
+            emb_size as usize,
         );
         // Forward all the layers in the network
         for layer in 0..config.layer_count() {
@@ -172,6 +182,11 @@ pub unsafe extern "C" fn forward(
     }
 }
 
+/// Does one forward pass of the `input` through the feed-forward network of the transformer heads
+///
+/// # Safety
+///
+/// TODO
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn head_ffn(
     layer: usize,
@@ -239,6 +254,11 @@ pub unsafe extern "C" fn head_ffn(
     }
 }
 
+/// Process the `input` through the attention heads of the transformer
+///
+/// # Safety
+///
+/// TODO
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn multihead_attention(
     head_count: usize,
@@ -287,7 +307,7 @@ pub unsafe extern "C" fn multihead_attention(
         let h_weight_attention = unsafe { weigh_attention.add(h_idx * head_size) };
         // Prepare the buffer to accumulate weighted attention
         unsafe {
-            h_weight_attention.write_bytes(0u8, head_size * core::mem::size_of::<f32>());
+            h_weight_attention.write_bytes(0u8, head_size);
         }
         // For each of the positions
         for pos in 0..=current_position {
